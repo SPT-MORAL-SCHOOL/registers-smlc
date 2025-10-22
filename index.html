@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPT MORAL SCHOOL - ระบบนักเรียนแกนนำคุณธรรม สพฐ.</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* CSS เพิ่มเติมสำหรับการออกแบบและความโปร่งแสง */
+        .card-bg {
+            /* โปร่งแสงเล็กน้อย */
+            background-color: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(8px); /* เพิ่มความสวยงาม */
+        }
+        /* สำหรับตารางแอดมิน เพื่อให้แสดงผลดีบนมือถือ */
+        .table-responsive {
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4">
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+
+    <script>
+        // 1. **Firebase Initialization**
+        const firebaseConfig = {
+             apiKey: "AIzaSyDjPKzAY2oyB83jcpXHbBKgK1WZhVmsnHA",
+             authDomain: "spt-students.firebaseapp.com",
+             projectId: "spt-students",
+             storageBucket: "spt-students.firebasestorage.app",
+             messagingSenderId: "814089202848",
+             appId: "1:814089202848:web:0fa59f182f4feadd702dc5",
+             measurementId: "G-MEPRLGW034"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+    </script>
+
+    <div id="app-container" class="w-full max-w-4xl">
+
+        <div id="login-page" class="flex flex-col items-center max-w-md mx-auto">
+            <img src="https://img5.pic.in.th/file/secure-sv1/IMG_25650953161d1c1bbdd8.jpeg" alt="Logo" class="w-24 h-24 mb-6 rounded-full shadow-lg">
+            <div class="card-bg p-8 w-full rounded-xl shadow-2xl transition duration-300 border border-gray-200">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">เข้าสู่ระบบนักเรียน</h2>
+
+                <div class="space-y-4">
+                    <div>
+                        <label for="studentId" class="block text-sm font-medium text-gray-700">รหัสนักเรียน</label>
+                        <input type="text" id="studentId" placeholder="กรอกรหัสนักเรียน" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 transition duration-150">
+                    </div>
+                    <div>
+                        <label for="phoneNumber" class="block text-sm font-medium text-gray-700">เบอร์โทรศัพท์ (10 หลัก)</label>
+                        <input type="tel" id="phoneNumber" placeholder="กรอกเบอร์โทรศัพท์" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 transition duration-150">
+                    </div>
+                    <p id="login-error" class="text-red-500 text-sm hidden"></p>
+                    <button id="login-button" class="w-full py-3 mt-4 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition duration-300 transform hover:scale-[1.01]">เข้าสู่ระบบ</button>
+                </div>
+
+                <a href="#" id="show-admin-login-link" class="mt-4 block text-center text-sm text-gray-500 hover:text-blue-600 transition duration-150">เข้าสู่ระบบสำหรับผู้ดูแลระบบ</a>
+            </div>
+            
+            <div id="admin-login-form" class="card-bg p-6 w-full rounded-xl shadow-2xl mt-4 hidden border border-gray-200">
+                <h3 class="text-xl font-semibold mb-4 text-center">Admin Login</h3>
+                <input type="email" id="adminEmail" placeholder="Email (sptmorral@spt.ac.th)" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg mb-3">
+                <input type="password" id="adminPassword" placeholder="Password" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg mb-3">
+                <p id="admin-login-error" class="text-red-500 text-sm hidden mb-3"></p>
+                <button id="admin-login-button" class="w-full py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700">Login Admin</button>
+            </div>
+        </div>
+
+        <div id="student-dashboard" class="hidden max-w-md mx-auto">
+            <div class="card-bg p-8 w-full rounded-xl shadow-2xl transition duration-300 border border-gray-200">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">ยินดีต้อนรับ, <span id="studentNameDisplay"></span> 👋</h2>
+                <p class="text-gray-600 mb-6">รหัสนักเรียน: <span id="studentIdDisplay" class="font-medium"></span></p>
+
+                <div id="applicationStatus" class="p-4 rounded-lg bg-gray-50 mb-6 text-center">
+                    </div>
+
+                <button id="applyButton" class="w-full py-3 mt-4 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition duration-300 transform hover:scale-[1.01]">
+                    สมัครเป็นนักเรียนแกนนำโรงเรียนคุณธรรม สพฐ.
+                </button>
+
+                <button id="logoutButton" class="w-full py-2 mt-4 text-sm bg-red-400 text-white rounded-lg shadow-md hover:bg-red-500 transition duration-300">
+                    ออกจากระบบ
+                </button>
+            </div>
+        </div>
+
+        <div id="admin-page" class="hidden">
+            <div class="card-bg p-6 w-full rounded-xl shadow-2xl border border-gray-200">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">⚙️ แผงควบคุมผู้ดูแลระบบ</h2>
+                <p class="text-sm text-gray-600 mb-6">ผู้ดูแล: sptmorral@spt.ac.th</p>
+
+                <div class="flex justify-between items-center mb-4">
+                    <button id="exportCsvButton" class="py-2 px-4 bg-yellow-500 text-white font-semibold rounded-lg shadow-md hover:bg-yellow-600 transition duration-300">
+                        ⬇️ ส่งออกไฟล์ CSV
+                    </button>
+                    <button id="adminLogoutButton" class="py-2 px-4 bg-red-500 text-white font-semibold rounded-lg shadow-md hover:bg-red-600 transition duration-300">
+                        ออกจากระบบ
+                    </button>
+                </div>
+
+                <h3 class="text-xl font-semibold mb-3">รายชื่อผู้สมัครทั้งหมด</h3>
+                <div class="table-responsive">
+                    <table class="min-w-full divide-y divide-gray-200 rounded-lg overflow-hidden">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">รหัส นร.</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ชื่อ-สกุล</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">เบอร์โทร</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">สถานะแกนนำ</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">การดำเนินการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="applicantTableBody" class="bg-white divide-y divide-gray-200">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+    <footer class="mt-8 text-center text-sm text-gray-500 w-full">
+        <div class="card-bg p-3 rounded-lg border border-gray-200 max-w-md mx-auto">
+            &copy 2024 SPT MORAL SCHOOL - โรงเรียนคุณธรรม สพฐ. โรงเรียนสตรีพัทลุง | All Rights Reserved
+        </div>
+    </footer>
+
+    <script>
+
+        // ตัวแปรสำหรับเก็บข้อมูลนักเรียนที่เข้าสู่ระบบปัจจุบัน
+        let currentUserData = null;
+
+        // ** A. ฟังก์ชัน Dashboard นักเรียน **
+        const loadStudentDashboard = (userData) => {
+            document.getElementById('studentNameDisplay').textContent = userData.name || 'นักเรียน';
+            document.getElementById('studentIdDisplay').textContent = userData.studentId;
+            
+            const applicationStatus = document.getElementById('applicationStatus');
+            const applyButton = document.getElementById('applyButton');
+            
+            // ตรวจสอบสถานะการสมัคร
+            if (userData.isMoralLeader === true) {
+                applicationStatus.innerHTML = '<p class="text-lg text-green-600 font-bold">✅ คุณสมัครเป็นนักเรียนแกนนำแล้ว</p>';
+                applyButton.classList.add('hidden');
+            } else {
+                applicationStatus.innerHTML = '<p class="text-lg text-red-500 font-bold">❌ คุณยังไม่ได้สมัครเป็นนักเรียนแกนนำ</p>';
+                applyButton.classList.remove('hidden');
+            }
+        };
+
+        // ** B. ฟังก์ชัน Dashboard Admin **
+
+        const renderAdminTable = (applicants) => {
+            const tbody = document.getElementById('applicantTableBody');
+            tbody.innerHTML = ''; // ล้างข้อมูลเก่า
+            
+            applicants.forEach(app => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-50';
+                
+                const statusBadge = app.isMoralLeader
+                    ? '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">สมัครแล้ว</span>'
+                    : '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">ยังไม่สมัคร</span>';
+
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${app.studentId || '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${app.name || '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${app.phoneNumber || '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center">${statusBadge}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                        <button onclick="editApplicant('${app.id}', '${app.studentId}')" class="text-indigo-600 hover:text-indigo-900 mr-3">แก้ไข</button>
+                        <button onclick="deleteApplicant('${app.id}', '${app.studentId}')" class="text-red-600 hover:text-red-900">ลบ</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        };
+
+        const loadAdminDashboard = async () => {
+            try {
+                const applicationsRef = db.collection('applications');
+                const snapshot = await applicationsRef.get();
+                const applicants = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderAdminTable(applicants);
+                return applicants; // ส่งคืนข้อมูลสำหรับ CSV
+            } catch (error) {
+                console.error("Error loading admin data:", error);
+                alert("เกิดข้อผิดพลาดในการโหลดข้อมูลผู้ดูแลระบบ");
+                return [];
+            }
+        };
+
+        // ** C. ฟังก์ชัน CRUD/Export สำหรับ Admin **
+
+        const editApplicant = async (docId, studentId) => {
+            const newPhone = prompt(`แก้ไขเบอร์โทรศัพท์สำหรับ รหัสนักเรียน ${studentId}:`);
+            if (newPhone) {
+                try {
+                    await db.collection('applications').doc(docId).update({
+                        phoneNumber: newPhone.trim()
+                        // เพิ่มฟิลด์อื่นๆ ที่ต้องการแก้ไข
+                    });
+                    alert(`อัปเดตข้อมูล ${studentId} สำเร็จ`);
+                    await loadAdminDashboard(); // โหลดข้อมูลใหม่
+                } catch (error) {
+                    alert('เกิดข้อผิดพลาดในการแก้ไขข้อมูล: ' + error.message);
+                }
+            }
+        };
+
+        const deleteApplicant = async (docId, studentId) => {
+            if (confirm(`คุณแน่ใจหรือไม่ที่จะลบข้อมูลของ รหัสนักเรียน ${studentId} นี้?`)) {
+                try {
+                    await db.collection('applications').doc(docId).delete();
+                    alert(`ลบข้อมูล ${studentId} สำเร็จ`);
+                    await loadAdminDashboard(); // โหลดข้อมูลใหม่
+                } catch (error) {
+                    alert('เกิดข้อผิดพลาดในการลบข้อมูล: ' + error.message);
+                }
+            }
+        };
+
+        const exportCSV = (data) => {
+            const csvRows = [];
+            
+            // กำหนดลำดับของ Headers ที่ต้องการ
+            const headers = ['id', 'studentId', 'name', 'phoneNumber', 'isMoralLeader', 'applicationDate'];
+            csvRows.push(headers.join(','));
+
+            for (const row of data) {
+                const values = headers.map(header => {
+                    let value = row[header] === undefined || row[header] === null ? '' : row[header];
+                    
+                    if (header === 'applicationDate' && value.toDate) {
+                        value = value.toDate().toLocaleString('th-TH'); // แปลง Firestore Timestamp เป็นวันที่/เวลาที่อ่านได้
+                    }
+                    if (header === 'isMoralLeader') {
+                        value = value ? 'สมัครแล้ว' : 'ยังไม่สมัคร';
+                    }
+
+                    // จัดการเครื่องหมายคำพูดในข้อมูล
+                    const escaped = ('' + value).replace(/"/g, '\\"');
+                    return `"${escaped}"`;
+                });
+                csvRows.push(values.join(','));
+            }
+
+            const csvString = '\ufeff' + csvRows.join('\n'); // \ufeff เพิ่ม BOM สำหรับรองรับภาษาไทยใน Excel
+            const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', 'spt_moral_applicants_' + new Date().toISOString().slice(0, 10) + '.csv');
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+
+        // ** D. การจัดการสถานะและการสลับหน้าจอ **
+
+        const showPage = (pageId) => {
+            document.getElementById('login-page').classList.add('hidden');
+            document.getElementById('student-dashboard').classList.add('hidden');
+            document.getElementById('admin-page').classList.add('hidden');
+            document.getElementById(pageId).classList.remove('hidden');
+        };
+
+        const checkAuthStatus = () => {
+            const user = localStorage.getItem('loggedInUser');
+            auth.onAuthStateChanged((adminUser) => {
+                if (adminUser && adminUser.email === 'sptmorral@spt.ac.th') {
+                    // แอดมินล็อกอินอยู่
+                    showPage('admin-page');
+                    loadAdminDashboard();
+                } else if (user) {
+                    // นักเรียนล็อกอินอยู่
+                    currentUserData = JSON.parse(user);
+                    showPage('student-dashboard');
+                    loadStudentDashboard(currentUserData);
+                } else {
+                    // ไม่มีใครล็อกอิน
+                    showPage('login-page');
+                }
+            });
+        };
+
+        // ** E. Event Listeners **
+
+        // 1. Student Login
+        document.getElementById('login-button').addEventListener('click', async () => {
+            const studentId = document.getElementById('studentId').value.trim();
+            const phoneNumber = document.getElementById('phoneNumber').value.trim();
+            const errorElement = document.getElementById('login-error');
+            errorElement.classList.add('hidden');
+
+            if (!studentId || !phoneNumber) {
+                errorElement.textContent = 'กรุณากรอกข้อมูลให้ครบถ้วน';
+                errorElement.classList.remove('hidden');
+                return;
+            }
+
+            try {
+                const snapshot = await db.collection('applications')
+                    .where('studentId', '==', studentId)
+                    .where('phoneNumber', '==', phoneNumber)
+                    .limit(1)
+                    .get();
+
+                if (!snapshot.empty) {
+                    const doc = snapshot.docs[0];
+                    currentUserData = { ...doc.data(), id: doc.id };
+                    localStorage.setItem('loggedInUser', JSON.stringify(currentUserData));
+                    showPage('student-dashboard');
+                    loadStudentDashboard(currentUserData);
+                } else {
+                    errorElement.textContent = 'รหัสนักเรียนหรือเบอร์โทรศัพท์ไม่ถูกต้อง';
+                    errorElement.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error("Student Login Error:", error);
+                errorElement.textContent = 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ: ' + error.message;
+                errorElement.classList.remove('hidden');
+            }
+        });
+
+        // 2. Student Apply Button
+        document.getElementById('applyButton').addEventListener('click', async () => {
+            if (!currentUserData || currentUserData.isMoralLeader) return;
+
+            if (confirm('คุณต้องการยืนยันการสมัครเป็นนักเรียนแกนนำโรงเรียนคุณธรรม สพฐ. หรือไม่?')) {
+                try {
+                    const userDocRef = db.collection('applications').doc(currentUserData.id);
+                    await userDocRef.update({
+                        isMoralLeader: true,
+                        applicationDate: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    // อัปเดตข้อมูลใน UI/Local Storage
+                    currentUserData.isMoralLeader = true;
+                    currentUserData.applicationDate = new Date(); // สำหรับแสดงผลชั่วคราว
+                    localStorage.setItem('loggedInUser', JSON.stringify(currentUserData));
+                    loadStudentDashboard(currentUserData);
+                    alert('สมัครสำเร็จแล้ว! ขอแสดงความยินดี');
+                } catch (error) {
+                    console.error("Application Error:", error);
+                    alert('เกิดข้อผิดพลาดในการสมัคร: ' + error.message);
+                }
+            }
+        });
+
+        // 3. Student Logout
+        document.getElementById('logoutButton').addEventListener('click', () => {
+            localStorage.removeItem('loggedInUser');
+            currentUserData = null;
+            showPage('login-page');
+        });
+
+        // 4. Admin Login Toggle
+        document.getElementById('show-admin-login-link').addEventListener('click', (e) => {
+            e.preventDefault();
+            const adminForm = document.getElementById('admin-login-form');
+            adminForm.classList.toggle('hidden');
+        });
+
+        // 5. Admin Login Submit
+        document.getElementById('admin-login-button').addEventListener('click', async () => {
+            const email = document.getElementById('adminEmail').value.trim();
+            const password = document.getElementById('adminPassword').value.trim();
+            const errorElement = document.getElementById('admin-login-error');
+            errorElement.classList.add('hidden');
+
+            if (email !== 'sptmorral@spt.ac.th') {
+                 errorElement.textContent = 'อีเมลผู้ดูแลระบบไม่ถูกต้อง';
+                 errorElement.classList.remove('hidden');
+                 return;
+            }
+
+            try {
+                await auth.signInWithEmailAndPassword(email, password);
+                // AuthStateChange จะจัดการการเปลี่ยนหน้าโดยอัตโนมัติ
+            } catch (error) {
+                console.error("Admin Login Error:", error);
+                errorElement.textContent = 'รหัสผ่านไม่ถูกต้อง: ' + error.message;
+                errorElement.classList.remove('hidden');
+            }
+        });
+
+        // 6. Admin Logout
+        document.getElementById('adminLogoutButton').addEventListener('click', () => {
+            auth.signOut().then(() => {
+                showPage('login-page');
+                localStorage.removeItem('loggedInUser'); // เผื่อนักเรียนเข้ามาก่อน
+            });
+        });
+
+        // 7. Export CSV
+        document.getElementById('exportCsvButton').addEventListener('click', async () => {
+            const applicants = await loadAdminDashboard();
+            if (applicants.length > 0) {
+                exportCSV(applicants);
+            } else {
+                alert('ไม่พบข้อมูลผู้สมัครที่จะส่งออก');
+            }
+        });
+
+        // เริ่มต้นตรวจสอบสถานะเมื่อโหลดหน้า
+        checkAuthStatus();
+    </script>
+</body>
+</html>
