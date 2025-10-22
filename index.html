@@ -1,0 +1,1294 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบนักเรียนแกนนำ SPT Moral</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <style>
+        /* ================================== */
+        /* Global Styles            */
+        /* ================================== */
+        :root {
+            --color-white: #ffffff;
+            --color-light-gray: #f4f4f9;
+            --color-dark-gray: #333;
+            --color-primary: #007bff; /* ใช้สีน้ำเงินอ่อนเป็นสีหลักสำหรับปุ่ม/ลิงก์ */
+            --color-success: #28a745;
+            --color-danger: #dc3545;
+            --shadow-light: 0 4px 15px rgba(0, 0, 0, 0.05);
+            --shadow-hover: 0 8px 25px rgba(0, 0, 0, 0.1);
+            --border-radius-large: 25px;
+            --border-radius-small: 15px;
+            --backdrop-filter: blur(5px);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--color-light-gray);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            color: var(--color-dark-gray);
+        }
+
+        /* ================================== */
+        /* Container Style         */
+        /* ================================== */
+        .container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .card {
+            background-color: rgba(255, 255, 255, 0.95); /* โปร่งแสงเล็กน้อย */
+            padding: 40px;
+            border-radius: var(--border-radius-large);
+            box-shadow: var(--shadow-light);
+            transition: all 0.3s ease;
+            width: 100%;
+            max-width: 450px;
+            margin: 20px;
+            backdrop-filter: var(--backdrop-filter);
+            border: 1px solid rgba(255, 255, 255, 0.5); /* ขอบขาวจางๆ */
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow-hover);
+        }
+
+        /* ================================== */
+        /* Form and Input          */
+        /* ================================== */
+        h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-weight: 600;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: var(--border-radius-small);
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background-color: var(--color-white);
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05); /* แสงเงาเล็กน้อย */
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+            outline: none;
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: var(--border-radius-small);
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            margin-top: 15px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-primary {
+            background-color: var(--color-primary);
+            color: var(--color-white);
+        }
+
+        .btn-primary:hover {
+            background-color: #0056b3;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .btn-secondary {
+            background-color: #6c757d;
+            color: var(--color-white);
+        }
+
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+        
+        .btn-success {
+            background-color: var(--color-success);
+            color: var(--color-white);
+        }
+
+        .btn-success:hover {
+            background-color: #1e7e34;
+        }
+        
+        .btn-danger {
+            background-color: var(--color-danger);
+            color: var(--color-white);
+        }
+
+        .btn-danger:hover {
+            background-color: #bd2130;
+        }
+
+        .alert {
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: var(--border-radius-small);
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        /* ================================== */
+        /* Logo/Header            */
+        /* ================================== */
+        .logo-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo-header img {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.5), 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        /* ================================== */
+        /* Home Page              */
+        /* ================================== */
+        #home-page {
+            max-width: 800px;
+        }
+
+        .data-display {
+            background-color: var(--color-white);
+            padding: 25px;
+            border-radius: var(--border-radius-large);
+            box-shadow: var(--shadow-light);
+            margin-top: 20px;
+        }
+
+        .data-row {
+            padding: 10px 0;
+            border-bottom: 1px dashed #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .data-row:last-child {
+            border-bottom: none;
+        }
+
+        .data-label {
+            font-weight: 500;
+            color: #666;
+            min-width: 120px;
+        }
+
+        .data-value {
+            font-weight: 600;
+            text-align: right;
+            flex-grow: 1;
+        }
+        
+        .application-status {
+            margin-top: 20px;
+            text-align: center;
+            padding: 20px;
+            border-radius: var(--border-radius-small);
+            font-weight: 600;
+        }
+
+        .status-not-applied {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
+        .status-applied {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+
+        /* ================================== */
+        /* Admin Page Styles         */
+        /* ================================== */
+        #admin-page {
+            max-width: 1200px;
+        }
+        
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .admin-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr; /* 1/3, 2/3 ratio */
+            gap: 20px;
+            margin-bottom: 20px;
+            align-items: flex-start;
+        }
+        
+        @media (max-width: 900px) {
+            .admin-grid {
+                grid-template-columns: 1fr; /* Stack on smaller screens */
+            }
+        }
+        
+        .admin-setting-card {
+            padding: 25px;
+            border-radius: var(--border-radius-large);
+            box-shadow: var(--shadow-light);
+            background-color: var(--color-white);
+        }
+        
+        .setting-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        
+        /* Toggle Switch Style */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+
+        .toggle-switch input { 
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--color-danger);
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--color-success);
+        }
+
+        input:focus + .slider {
+            box-shadow: 0 0 1px var(--color-success);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        
+        .status-display {
+            font-size: 1.1em;
+            font-weight: 600;
+        }
+        
+        .status-open {
+            color: var(--color-success);
+        }
+        
+        .status-closed {
+            color: var(--color-danger);
+        }
+        
+        .auto-schedule-group {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px dashed #ddd;
+        }
+        
+        .auto-schedule-group h4 {
+            margin-bottom: 15px;
+            color: #555;
+        }
+        
+        .datetime-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .datetime-group input {
+            flex: 1;
+        }
+
+        .data-table-container {
+            overflow-x: auto;
+            background-color: var(--color-white);
+            padding: 20px;
+            border-radius: var(--border-radius-large);
+            box-shadow: var(--shadow-light);
+            grid-column: 2 / 3; /* Ensure it takes up the second column in the grid */
+        }
+        
+        @media (max-width: 900px) {
+            .data-table-container {
+                grid-column: 1 / 2; /* Full width on smaller screens */
+            }
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 800px;
+        }
+
+        .data-table th, .data-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        .data-table th {
+            background-color: var(--color-light-gray);
+            font-weight: 600;
+            color: var(--color-dark-gray);
+        }
+
+        .data-table tr:hover {
+            background-color: #f9f9f9;
+        }
+
+        .action-btns button {
+            margin-right: 5px;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        .action-btns .btn-edit {
+            background-color: #ffc107;
+            color: var(--color-dark-gray);
+        }
+
+        .action-btns .btn-edit:hover {
+            background-color: #e0a800;
+        }
+
+        .action-btns .btn-delete {
+            background-color: #dc3545;
+            color: var(--color-white);
+        }
+
+        .action-btns .btn-delete:hover {
+            background-color: #c82333;
+        }
+
+        /* ================================== */
+        /* Modal Styles            */
+        /* ================================== */
+        .modal {
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.4);
+            display: none; /* ซ่อนไว้ก่อน */
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(2px);
+        }
+
+        .modal-content {
+            background-color: var(--color-white);
+            padding: 30px;
+            border-radius: var(--border-radius-large);
+            box-shadow: var(--shadow-hover);
+            width: 90%;
+            max-width: 500px;
+            position: relative;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 25px;
+            color: var(--color-dark-gray);
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .modal-close:hover {
+            color: #000;
+        }
+
+        /* ================================== */
+        /* Footer Style           */
+        /* ================================== */
+        .footer {
+            padding: 15px;
+            text-align: center;
+            color: #6c757d;
+            font-size: 14px;
+            margin-top: 20px;
+        }
+
+        /* ================================== */
+        /* Responsive Design         */
+        /* ================================== */
+        @media (max-width: 768px) {
+            .card {
+                padding: 30px 20px;
+                margin: 10px;
+            }
+
+            .btn {
+                padding: 10px;
+                font-size: 16px;
+            }
+            
+            .data-row {
+                flex-direction: column;
+                align-items: flex-start;
+                text-align: left;
+            }
+
+            .data-value {
+                text-align: left;
+                margin-top: 5px;
+                word-break: break-all;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDjPKzAY2oyB83jcpHcpHbBKgK1WZhVmsnHA",
+            authDomain: "spt-students.firebaseapp.com",
+            projectId: "spt-students",
+            storageBucket: "spt-students.firebasestorage.app",
+            messagingSenderId: "814089202848",
+            appId: "1:814089202848:web:0fa59f182f4feadd702dc5",
+            measurementId: "G-MEPRLGW034"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+        
+        const ADMIN_EMAIL = 'sptmorral@spt.ac.th';
+
+        // สถานะการแสดงผล
+        let currentView = 'login'; // 'login', 'home', 'admin'
+        let studentData = null; // ข้อมูลที่ปรับแล้วสำหรับหน้า Home
+        let applicationDocId = null; // Document ID ใน collection 'applications'
+        let rawStudentData = null; // ข้อมูลดิบจาก Firestore
+        let registrationStatus = { // สถานะการรับสมัครปัจจุบัน
+            isManualOpen: true,
+            autoOpenDate: null,
+            autoCloseDate: null,
+            currentStatus: 'กำลังโหลด'
+        };
+
+        // ฟังก์ชันเปลี่ยนหน้าจอ
+        function setView(view) {
+            document.getElementById('login-page').style.display = 'none';
+            document.getElementById('home-page').style.display = 'none';
+            document.getElementById('admin-page').style.display = 'none';
+
+            if (view === 'login') {
+                document.getElementById('login-page').style.display = 'flex';
+                currentView = 'login';
+            } else if (view === 'home') {
+                document.getElementById('home-page').style.display = 'block';
+                currentView = 'home';
+                renderHomePage();
+            } else if (view === 'admin') {
+                document.getElementById('admin-page').style.display = 'block';
+                currentView = 'admin';
+                loadApplicationsForAdmin();
+                loadRegistrationStatus(); // โหลดสถานะการรับสมัครสำหรับ Admin
+            }
+        }
+        
+        // ==================================
+        //         Registration Status Helper
+        // ==================================
+        
+        // ฟังก์ชันดึงสถานะการรับสมัครจาก Firestore (ใช้ในหน้า Home และ Admin)
+        async function loadRegistrationStatus() {
+            try {
+                const doc = await db.collection('config').doc('registration').get();
+                const data = doc.data() || {};
+                
+                registrationStatus.isManualOpen = data.isManualOpen !== false; // ถ้าเป็น null หรือ undefined ถือว่าเปิด
+                registrationStatus.autoOpenDate = data.autoOpenDate;
+                registrationStatus.autoCloseDate = data.autoCloseDate;
+                
+                let isOpen = registrationStatus.isManualOpen; // Default ตาม Manual
+                let statusText = registrationStatus.isManualOpen ? 'เปิดรับสมัคร (Manual)' : 'ปิดรับสมัคร (Manual)';
+
+                const now = new Date();
+                
+                // ตรวจสอบ Auto Schedule
+                if (registrationStatus.autoOpenDate instanceof firebase.firestore.Timestamp && registrationStatus.autoCloseDate instanceof firebase.firestore.Timestamp) {
+                    const openTime = registrationStatus.autoOpenDate.toDate();
+                    const closeTime = registrationStatus.autoCloseDate.toDate();
+                    
+                    if (now >= openTime && now < closeTime) {
+                         isOpen = true;
+                         statusText = 'เปิดรับสมัคร (Auto Schedule)';
+                    } else if (now >= closeTime) {
+                         isOpen = false;
+                         statusText = 'ปิดรับสมัคร (Auto Schedule: หมดเวลา)';
+                    } else if (now < openTime) {
+                         isOpen = false;
+                         statusText = 'ปิดรับสมัคร (Auto Schedule: รอรอบถัดไป)';
+                    }
+                }
+                
+                // Final Status
+                registrationStatus.currentStatus = statusText;
+                
+                if (currentView === 'admin') {
+                    renderAdminSettings();
+                }
+
+                return isOpen;
+
+            } catch (error) {
+                console.error("Error loading registration status:", error);
+                registrationStatus.currentStatus = 'Error: ไม่สามารถโหลดสถานะได้';
+                return false;
+            }
+        }
+        
+        // ==================================
+        //         Login/Logout Functions
+        // ==================================
+
+        // เข้าสู่ระบบสำหรับนักเรียน (รหัสนักเรียน + เบอร์โทร)
+        async function studentLogin(event) {
+            event.preventDefault();
+            // ... (โค้ด studentLogin เดิม)
+            const studentId = document.getElementById('studentId').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+            const loginMessage = document.getElementById('login-message');
+            loginMessage.textContent = '';
+
+            if (!studentId || !phone) {
+                loginMessage.textContent = 'กรุณากรอกรหัสนักเรียนและเบอร์โทรศัพท์ให้ครบถ้วน';
+                loginMessage.className = 'alert alert-error';
+                return;
+            }
+
+            try {
+                // ค้นหาข้อมูลจาก collection 'applications' โดยใช้ studentId
+                const snapshot = await db.collection('applications')
+                    .where('studentId', '==', studentId)
+                    .limit(1)
+                    .get();
+
+                if (snapshot.empty) {
+                    loginMessage.textContent = 'ไม่พบรหัสนักเรียนในระบบ';
+                    loginMessage.className = 'alert alert-error';
+                    return;
+                }
+                
+                const studentDoc = snapshot.docs[0];
+                rawStudentData = studentDoc.data();
+                applicationDocId = studentDoc.id;
+
+                // ตรวจสอบเบอร์โทร
+                if (rawStudentData.phone !== phone) {
+                     loginMessage.textContent = 'เบอร์โทรศัพท์ไม่ถูกต้อง';
+                     loginMessage.className = 'alert alert-error';
+                     return;
+                }
+
+                // ปรับโครงสร้างข้อมูล
+                studentData = {
+                    studentId: rawStudentData.studentId,
+                    phone: rawStudentData.phone,
+                    name: `${rawStudentData.prefix || ''} ${rawStudentData.firstName || ''} ${rawStudentData.lastName || ''}`.trim(),
+                    class: `${rawStudentData.grade || ''}/${rawStudentData.room || ''}`, 
+                    isCoreStudent: rawStudentData.isCoreStudent || false, 
+                };
+
+                setView('home');
+                
+            } catch (error) {
+                console.error("Student Login Error:", error);
+                loginMessage.textContent = 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ: ' + error.message;
+                loginMessage.className = 'alert alert-error';
+            }
+        }
+        
+        // เข้าสู่ระบบสำหรับผู้ดูแลระบบ (Email/Password)
+        async function adminLogin(event) {
+            event.preventDefault();
+            const email = document.getElementById('adminEmail').value.trim();
+            const password = document.getElementById('adminPassword').value.trim();
+            const adminMessage = document.getElementById('admin-login-message');
+            adminMessage.textContent = '';
+
+            if (email !== ADMIN_EMAIL) {
+                 adminMessage.textContent = 'อีเมลผู้ดูแลระบบไม่ถูกต้อง';
+                 adminMessage.className = 'alert alert-error';
+                 return;
+            }
+
+            try {
+                // ใช้ Firebase Auth ในการยืนยันตัวตน
+                await auth.signInWithEmailAndPassword(email, password);
+                setView('admin');
+            } catch (error) {
+                console.error("Admin Login Error:", error);
+                adminMessage.textContent = 'รหัสผ่านไม่ถูกต้อง';
+                adminMessage.className = 'alert alert-error';
+            }
+        }
+        
+        // ออกจากระบบ
+        function logout() {
+            if (currentView === 'admin') {
+                auth.signOut();
+            }
+            studentData = null;
+            rawStudentData = null;
+            applicationDocId = null;
+            setView('login');
+            // รีเซ็ตฟอร์ม
+            document.getElementById('login-form').reset();
+            document.getElementById('admin-login-form').reset();
+            const loginMessage = document.getElementById('login-message');
+            if(loginMessage) loginMessage.style.display = 'none';
+        }
+
+        // ==================================
+        //          Home Page Functions
+        // ==================================
+        
+        async function renderHomePage() {
+            if (!studentData) {
+                setView('login');
+                return;
+            }
+
+            const isRegistrationCurrentlyOpen = await loadRegistrationStatus(); // โหลดสถานะล่าสุด
+
+            const homeContent = document.getElementById('home-content');
+            
+            let applyButtonHtml = '';
+            let statusDisplayHtml = '';
+
+            if (studentData.isCoreStudent) {
+                statusDisplayHtml = `<div id="application-status-div" class="application-status status-applied">
+                    สถานะ: ✅ คุณได้สมัครเป็นนักเรียนแกนนำแล้ว
+                </div>`;
+            } else if (isRegistrationCurrentlyOpen) {
+                statusDisplayHtml = `<div id="application-status-div" class="application-status status-not-applied">
+                    สถานะ: 🔔 เปิดรับสมัคร | ${registrationStatus.currentStatus}
+                </div>`;
+                applyButtonHtml = '<button id="apply-btn" class="btn btn-primary">สมัครเป็นนักเรียนแกนนำ</button>';
+            } else {
+                 statusDisplayHtml = `<div id="application-status-div" class="application-status status-not-applied" style="background-color: #f8d7da; color: #721c24;">
+                    สถานะ: ❌ ปิดรับสมัคร | ${registrationStatus.currentStatus}
+                </div>`;
+                applyButtonHtml = '';
+            }
+
+
+            homeContent.innerHTML = `
+                <h2>ข้อมูลนักเรียน</h2>
+                <div class="data-display">
+                    <div class="data-row"><div class="data-label">รหัสนักเรียน:</div><div class="data-value">${studentData.studentId || '-'}</div></div>
+                    <div class="data-row"><div class="data-label">ชื่อ-นามสกุล:</div><div class="data-value">${studentData.name || '-'}</div></div>
+                    <div class="data-row"><div class="data-label">เบอร์โทรศัพท์:</div><div class="data-value">${studentData.phone || '-'}</div></div>
+                    <div class="data-row"><div class="data-label">ระดับชั้น:</div><div class="data-value">${studentData.class || '-'}</div></div>
+                    <div class="data-row"><div class="data-label">สมัครเป็นแกนนำ:</div><div class="data-value" id="applyStatus">${studentData.isCoreStudent ? 'ใช่' : 'ยังไม่สมัคร'}</div></div>
+                </div>
+                ${statusDisplayHtml}
+                ${applyButtonHtml}
+            `;
+            
+            if (isRegistrationCurrentlyOpen && !studentData.isCoreStudent) {
+                document.getElementById('apply-btn').addEventListener('click', confirmApplication);
+            }
+        }
+
+        function confirmApplication() {
+            if (confirm('คุณแน่ใจหรือไม่ว่าต้องการสมัครเป็นนักเรียนแกนนำโรงเรียนคุณธรรม สพฐ. โรงเรียนสตรีพัทลุง?')) {
+                applyForCoreStudent();
+            }
+        }
+
+        async function applyForCoreStudent() {
+            if (!applicationDocId || !rawStudentData) return;
+
+            // ตรวจสอบสถานะการรับสมัครอีกครั้งก่อนดำเนินการ
+            const isRegistrationCurrentlyOpen = await loadRegistrationStatus();
+            if (!isRegistrationCurrentlyOpen) {
+                 alert('ขณะนี้ระบบปิดรับสมัครแล้ว');
+                 renderHomePage();
+                 return;
+            }
+
+            try {
+                // 1. อัปเดต collection 'applications'
+                await db.collection('applications').doc(applicationDocId).update({
+                    isCoreStudent: true,
+                    applicationDate: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                // 2. บันทึกข้อมูลการสมัครไว้ใน collection ใหม่ 'coreApplications'
+                const coreApplicationData = {
+                    studentId: rawStudentData.studentId,
+                    name: `${rawStudentData.prefix || ''} ${rawStudentData.firstName || ''} ${rawStudentData.lastName || ''}`.trim(),
+                    phone: rawStudentData.phone,
+                    grade: rawStudentData.grade,
+                    room: rawStudentData.room,
+                    class: `${rawStudentData.grade || ''}/${rawStudentData.room || ''}`, 
+                    applicationDate: firebase.firestore.FieldValue.serverTimestamp(),
+                    status: 'Pending'
+                };
+                await db.collection('coreApplications').add(coreApplicationData);
+
+                // อัปเดตข้อมูลและแสดงผลหน้าจอ
+                studentData.isCoreStudent = true;
+                rawStudentData.isCoreStudent = true; 
+                alert('การสมัครสำเร็จเรียบร้อยแล้ว!');
+                renderHomePage(); // เรียกเรนเดอร์ใหม่เพื่ออัปเดตปุ่มและสถานะ
+            } catch (error) {
+                console.error("Application Error:", error);
+                alert('เกิดข้อผิดพลาดในการสมัคร: ' + error.message + '. (ตรวจสอบ Firestore Rules)');
+            }
+        }
+
+        // ==================================
+        //          Admin Page Functions
+        // ==================================
+        
+        let allApplications = [];
+
+        async function loadApplicationsForAdmin() {
+            const tableBody = document.getElementById('admin-table-body');
+            tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;">กำลังโหลดข้อมูล...</td></tr>';
+
+            try {
+                // โหลดข้อมูลจาก collection 'coreApplications'
+                const snapshot = await db.collection('coreApplications').orderBy('applicationDate', 'desc').get();
+                allApplications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                
+                renderAdminTable(allApplications);
+
+            } catch (error) {
+                console.error("Error loading admin data:", error);
+                tableBody.innerHTML = '<tr><td colspan="7" class="alert alert-error" style="text-align:center;">เกิดข้อผิดพลาดในการโหลดข้อมูล (ตรวจสอบ Firestore Rules)</td></tr>';
+            }
+        }
+        
+        // --- ส่วนที่เพิ่มใหม่สำหรับ Admin Settings ---
+        
+        function renderAdminSettings() {
+             const statusDisplay = document.getElementById('reg-status-display');
+             const manualToggle = document.getElementById('manual-toggle');
+             const autoOpenInput = document.getElementById('autoOpenDate');
+             const autoCloseInput = document.getElementById('autoCloseDate');
+             const statusLabel = document.getElementById('manual-status-label');
+             
+             // 1. แสดงสถานะปัจจุบัน
+             const isOpen = registrationStatus.isManualOpen;
+             statusLabel.textContent = isOpen ? 'เปิดรับสมัคร' : 'ปิดรับสมัคร';
+             statusDisplay.className = `status-display ${isOpen ? 'status-open' : 'status-closed'}`;
+             statusDisplay.textContent = registrationStatus.currentStatus;
+             manualToggle.checked = isOpen;
+             
+             // 2. แสดงวันที่/เวลาใน Auto Schedule
+             const formatTimestamp = (timestamp) => {
+                 if (!timestamp) return '';
+                 const date = timestamp.toDate();
+                 // Format: YYYY-MM-DDTHH:mm (ISO 8601 for input[type=datetime-local])
+                 const year = date.getFullYear();
+                 const month = String(date.getMonth() + 1).padStart(2, '0');
+                 const day = String(date.getDate()).padStart(2, '0');
+                 const hours = String(date.getHours()).padStart(2, '0');
+                 const minutes = String(date.getMinutes()).padStart(2, '0');
+                 return `${year}-${month}-${day}T${hours}:${minutes}`;
+             };
+
+             autoOpenInput.value = formatTimestamp(registrationStatus.autoOpenDate);
+             autoCloseInput.value = formatTimestamp(registrationStatus.autoCloseDate);
+        }
+        
+        // ฟังก์ชันควบคุมปุ่มเปิด/ปิดแบบ Manual
+        async function toggleManualStatus() {
+            const manualToggle = document.getElementById('manual-toggle');
+            const newStatus = manualToggle.checked;
+            const statusLabel = document.getElementById('manual-status-label');
+            const saveBtn = document.getElementById('save-schedule-btn');
+            
+            statusLabel.textContent = 'กำลังบันทึก...';
+            saveBtn.disabled = true;
+
+            try {
+                await db.collection('config').doc('registration').set({
+                    isManualOpen: newStatus,
+                }, { merge: true }); // ใช้ merge เพื่อไม่ให้กระทบ Auto Schedule
+                
+                // โหลดสถานะใหม่และเรนเดอร์ UI
+                await loadRegistrationStatus(); 
+                alert(`ตั้งค่าสถานะเป็น "${registrationStatus.isManualOpen ? 'เปิด' : 'ปิด'}" สำเร็จ!`);
+
+            } catch (error) {
+                console.error("Error toggling manual status:", error);
+                alert('เกิดข้อผิดพลาดในการบันทึกสถานะ: ' + error.message + '. (ตรวจสอบ Firestore Rules)');
+                manualToggle.checked = !newStatus; // Rollback UI
+            } finally {
+                saveBtn.disabled = false;
+            }
+        }
+        
+        // ฟังก์ชันบันทึกการตั้งเวลาอัตโนมัติ
+        async function saveAutoSchedule() {
+            const autoOpenInput = document.getElementById('autoOpenDate').value;
+            const autoCloseInput = document.getElementById('autoCloseDate').value;
+            const scheduleMessage = document.getElementById('schedule-message');
+            const saveBtn = document.getElementById('save-schedule-btn');
+            
+            scheduleMessage.textContent = '';
+            saveBtn.disabled = true;
+
+            if (!autoOpenInput || !autoCloseInput) {
+                scheduleMessage.textContent = 'กรุณาเลือกวันที่/เวลาเปิดและปิดให้ครบถ้วน';
+                scheduleMessage.className = 'alert alert-error';
+                saveBtn.disabled = false;
+                return;
+            }
+
+            const openTimestamp = firebase.firestore.Timestamp.fromDate(new Date(autoOpenInput));
+            const closeTimestamp = firebase.firestore.Timestamp.fromDate(new Date(autoCloseInput));
+
+            if (closeTimestamp.toDate() <= openTimestamp.toDate()) {
+                 scheduleMessage.textContent = 'วันที่/เวลาปิดต้องอยู่หลังจากวันที่/เวลาเปิด';
+                 scheduleMessage.className = 'alert alert-error';
+                 saveBtn.disabled = false;
+                 return;
+            }
+
+            try {
+                await db.collection('config').doc('registration').set({
+                    autoOpenDate: openTimestamp,
+                    autoCloseDate: closeTimestamp
+                }, { merge: true });
+
+                scheduleMessage.textContent = 'บันทึกการตั้งเวลาอัตโนมัติสำเร็จ!';
+                scheduleMessage.className = 'alert alert-success';
+                
+                await loadRegistrationStatus();
+            } catch (error) {
+                console.error("Error saving auto schedule:", error);
+                scheduleMessage.textContent = 'เกิดข้อผิดพลาดในการบันทึก: ' + error.message + '. (ตรวจสอบ Firestore Rules)';
+                scheduleMessage.className = 'alert alert-error';
+            } finally {
+                saveBtn.disabled = false;
+            }
+        }
+        
+        async function clearAutoSchedule() {
+            if (!confirm('คุณแน่ใจหรือไม่ที่จะยกเลิกการตั้งเวลาอัตโนมัติ?')) return;
+            
+            try {
+                await db.collection('config').doc('registration').set({
+                    autoOpenDate: firebase.firestore.FieldValue.delete(),
+                    autoCloseDate: firebase.firestore.FieldValue.delete(),
+                }, { merge: true });
+
+                alert('ยกเลิกการตั้งเวลาอัตโนมัติสำเร็จ! ระบบจะกลับไปใช้สถานะ Manual');
+                
+                await loadRegistrationStatus();
+            } catch (error) {
+                console.error("Error clearing auto schedule:", error);
+                alert('เกิดข้อผิดพลาดในการยกเลิก: ' + error.message);
+            }
+        }
+
+        // --- โค้ดส่วนอื่นๆ (Admin Table) คงเดิม ---
+        
+        function renderAdminTable(applications) {
+             const tableBody = document.getElementById('admin-table-body');
+             tableBody.innerHTML = '';
+             
+             if (applications.length === 0) {
+                 tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;">ไม่มีข้อมูลการสมัคร</td></tr>';
+                 return;
+             }
+
+             applications.forEach(app => {
+                const dateString = app.applicationDate ? new Date(app.applicationDate.seconds * 1000).toLocaleDateString('th-TH') : '-';
+                const classDisplay = app.class || `${app.grade || ''}/${app.room || ''}`;
+                
+                const row = `
+                    <tr>
+                        <td>${app.studentId || '-'}</td>
+                        <td>${app.name || '-'}</td>
+                        <td>${app.phone || '-'}</td>
+                        <td>${classDisplay}</td>
+                        <td>${dateString}</td>
+                        <td>${app.status || 'Pending'}</td>
+                        <td class="action-btns">
+                            <button class="btn-edit" onclick="openEditModal('${app.id}', '${app.name}', '${app.status}')">แก้ไข</button>
+                            <button class="btn-delete" onclick="deleteApplication('${app.id}', '${app.name}')">ลบ</button>
+                        </td>
+                    </tr>
+                `;
+                tableBody.innerHTML += row;
+             });
+        }
+        
+        // ... (ส่วน Modal Functions และ Export CSV เหมือนเดิม)
+
+        function openEditModal(docId, name, currentStatus) {
+            document.getElementById('edit-doc-id').value = docId;
+            document.getElementById('edit-name').value = name;
+            document.getElementById('edit-status').value = currentStatus;
+            document.getElementById('edit-modal').style.display = 'flex';
+            document.getElementById('edit-modal-message').textContent = '';
+        }
+
+        function closeEditModal() {
+            document.getElementById('edit-modal').style.display = 'none';
+        }
+
+        async function saveEditApplication(event) {
+            event.preventDefault();
+            const docId = document.getElementById('edit-doc-id').value;
+            const newStatus = document.getElementById('edit-status').value;
+            const messageDiv = document.getElementById('edit-modal-message');
+            messageDiv.textContent = 'กำลังบันทึก...';
+            messageDiv.className = 'alert alert-success';
+
+            try {
+                // อัปเดต collection 'coreApplications'
+                await db.collection('coreApplications').doc(docId).update({
+                    status: newStatus,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                // อัปเดต collection 'applications' ให้สอดคล้องกัน
+                const currentApp = allApplications.find(app => app.id === docId);
+                if (currentApp) {
+                     const appSnapshot = await db.collection('applications').where('studentId', '==', currentApp.studentId).limit(1).get();
+                     if (!appSnapshot.empty) {
+                         await db.collection('applications').doc(appSnapshot.docs[0].id).update({
+                            coreApplicationStatus: newStatus // เพิ่ม field สถานะการสมัครใน collection หลัก
+                         });
+                     }
+                }
+
+                alert('แก้ไขข้อมูลสำเร็จ!');
+                closeEditModal();
+                loadApplicationsForAdmin(); // โหลดข้อมูลใหม่
+            } catch (error) {
+                console.error("Error saving edit:", error);
+                messageDiv.textContent = 'เกิดข้อผิดพลาดในการบันทึก: ' + error.message;
+                messageDiv.className = 'alert alert-error';
+            }
+        }
+        
+        async function deleteApplication(docId, name) {
+            if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลการสมัครของ ${name}?`)) {
+                return;
+            }
+
+            try {
+                 // อัปเดต isCoreStudent ใน applications ก่อนลบ
+                const currentApp = allApplications.find(app => app.id === docId);
+                if (currentApp) {
+                     const appSnapshot = await db.collection('applications').where('studentId', '==', currentApp.studentId).limit(1).get();
+                     if (!appSnapshot.empty) {
+                         // ตั้งค่า isCoreStudent เป็น false
+                         await db.collection('applications').doc(appSnapshot.docs[0].id).update({
+                            isCoreStudent: false,
+                            coreApplicationStatus: 'Deleted'
+                         });
+                     }
+                }
+                
+                // ลบข้อมูลการสมัครใน coreApplications
+                await db.collection('coreApplications').doc(docId).delete();
+
+                alert(`ลบข้อมูลการสมัครของ ${name} สำเร็จ!`);
+                loadApplicationsForAdmin(); // โหลดข้อมูลใหม่
+            } catch (error) {
+                console.error("Error deleting document:", error);
+                alert('เกิดข้อผิดพลาดในการลบ: ' + error.message);
+            }
+        }
+
+
+        function exportToCSV() {
+            if (allApplications.length === 0) {
+                alert("ไม่มีข้อมูลให้ส่งออก");
+                return;
+            }
+
+            const header = ["รหัสนักเรียน", "ชื่อ-นามสกุล", "เบอร์โทร", "ระดับชั้น", "สถานะ", "วันที่สมัคร"];
+            const csvRows = [];
+            csvRows.push(header.join(','));
+
+            for (const app of allApplications) {
+                const dateString = app.applicationDate ? new Date(app.applicationDate.seconds * 1000).toLocaleDateString('th-TH') : '';
+                
+                const classDisplay = app.class || `${app.grade || ''}/${app.room || ''}`;
+                
+                const row = [
+                    `"${app.studentId || ''}"`,
+                    `"${app.name || ''}"`,
+                    `"${app.phone || ''}"`,
+                    `"${classDisplay}"`,
+                    `"${app.status || 'Pending'}"`,
+                    `"${dateString}"`
+                ];
+                csvRows.push(row.join(','));
+            }
+
+            const csvString = csvRows.join('\n');
+            const blob = new Blob(["\ufeff", csvString], { type: 'text/csv;charset=utf-8;' }); 
+
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute('download', 'SPT_CoreStudent_Applications.csv');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // ==================================
+        //            Initialization
+        // ==================================
+        
+        // ตรวจสอบการรับรองสิทธิ์ของผู้ดูแลระบบเมื่อโหลดหน้าครั้งแรก
+        auth.onAuthStateChanged(user => {
+            if (user && user.email === ADMIN_EMAIL) {
+                setView('admin');
+            } else {
+                setView('login');
+            }
+        });
+        
+    </script>
+    
+    <div class="container" id="login-page">
+        <div class="card">
+            <div class="logo-header">
+                <img src="https://img5.pic.in.th/file/secure-sv1/IMG_25650953161d1c1bbdd8.jpeg" alt="Logo">
+                <h2>เข้าสู่ระบบนักเรียน</h2>
+            </div>
+            <div id="login-message" class="alert" style="display: none;"></div>
+            <form id="login-form" onsubmit="studentLogin(event)">
+                <div class="form-group">
+                    <label for="studentId"><i class="fas fa-user-graduate"></i> รหัสนักเรียน</label>
+                    <input type="text" id="studentId" placeholder="กรอกรหัสนักเรียน" required>
+                </div>
+                <div class="form-group">
+                    <label for="phone"><i class="fas fa-mobile-alt"></i> เบอร์โทรศัพท์</label>
+                    <input type="tel" id="phone" placeholder="กรอกเบอร์โทรศัพท์" required>
+                </div>
+                <button type="submit" class="btn btn-primary">เข้าสู่ระบบ</button>
+            </form>
+            <button class="btn btn-secondary" style="margin-top: 20px;" onclick="document.getElementById('admin-modal').style.display='flex'">เข้าสู่ระบบผู้ดูแลระบบ</button>
+        </div>
+    </div>
+    
+    <div class="container" id="home-page" style="display: none;">
+        <div class="card" style="max-width: 600px;">
+            <div id="home-content">
+                </div>
+            <button class="btn btn-secondary" style="margin-top: 30px;" onclick="logout()">ออกจากระบบ</button>
+        </div>
+    </div>
+
+    <div class="container" id="admin-page" style="display: none;">
+        <div class="card" style="max-width: 1200px; padding: 20px; width: 95%;">
+            <div class="admin-header">
+                <h2><i class="fas fa-users-cog"></i> ระบบผู้ดูแลระบบ - การสมัครแกนนำ</h2>
+                <div>
+                    <button class="btn btn-primary" onclick="exportToCSV()" style="width: auto;"><i class="fas fa-file-csv"></i> ส่งออก CSV</button>
+                    <button class="btn btn-secondary" style="width: auto;" onclick="logout()"><i class="fas fa-sign-out-alt"></i> ออกจากระบบ</button>
+                </div>
+            </div>
+            
+            <div class="admin-grid">
+                 <div class="admin-setting-card">
+                    <h3><i class="fas fa-cogs"></i> ตั้งค่าสถานะการรับสมัคร</h3>
+                    
+                    <div class="setting-header">
+                        <span id="reg-status-display" class="status-display status-closed">กำลังโหลดสถานะ...</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="manual-toggle" onclick="toggleManualStatus()">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                         <span style="font-size: 0.9em; color: #666;" id="manual-status-label">ปิดรับสมัคร</span>
+                    </div>
+
+                    <div class="auto-schedule-group">
+                        <h4><i class="fas fa-clock"></i> ตั้งเวลาเปิด/ปิดอัตโนมัติ (UTC Time)</h4>
+                        <div id="schedule-message" class="alert" style="display: none;"></div>
+                        
+                        <form onsubmit="event.preventDefault(); saveAutoSchedule()">
+                            <div class="form-group">
+                                <label for="autoOpenDate">วันที่/เวลาเปิด:</label>
+                                <input type="datetime-local" id="autoOpenDate" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="autoCloseDate">วันที่/เวลาปิด:</label>
+                                <input type="datetime-local" id="autoCloseDate" required>
+                            </div>
+                            <button type="submit" id="save-schedule-btn" class="btn btn-success" style="margin-top: 0;"><i class="fas fa-save"></i> บันทึกการตั้งเวลา</button>
+                        </form>
+                        <button class="btn btn-danger" onclick="clearAutoSchedule()" style="margin-top: 10px;"><i class="fas fa-times-circle"></i> ยกเลิกการตั้งเวลาอัตโนมัติ</button>
+                    </div>
+                </div>
+
+                <div class="data-table-container">
+                    <h3><i class="fas fa-list-alt"></i> รายการผู้สมัคร</h3>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>รหัสนักเรียน</th>
+                                <th>ชื่อ-นามสกุล</th>
+                                <th>เบอร์โทร</th>
+                                <th>ระดับชั้น</th>
+                                <th>วันที่สมัคร</th>
+                                <th>สถานะ</th>
+                                <th>จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-table-body">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="admin-modal" class="modal" onclick="if(event.target.id === 'admin-modal') this.style.display='none'">
+        <div class="modal-content">
+            <span class="modal-close" onclick="document.getElementById('admin-modal').style.display='none'">&times;</span>
+            <div class="logo-header">
+                <i class="fas fa-user-shield" style="font-size: 50px; color: var(--color-dark-gray);"></i>
+                <h2>เข้าสู่ระบบผู้ดูแลระบบ</h2>
+            </div>
+            <div id="admin-login-message" class="alert" style="display: none;"></div>
+            <form id="admin-login-form" onsubmit="adminLogin(event)">
+                <div class="form-group">
+                    <label for="adminEmail"><i class="fas fa-envelope"></i> อีเมล</label>
+                    <input type="email" id="adminEmail" value="sptmorral@spt.ac.th" placeholder="กรอกอีเมลผู้ดูแลระบบ" required>
+                </div>
+                <div class="form-group">
+                    <label for="adminPassword"><i class="fas fa-lock"></i> รหัสผ่าน</label>
+                    <input type="password" id="adminPassword" placeholder="กรอกรหัสผ่าน" required>
+                </div>
+                <button type="submit" class="btn btn-primary">เข้าสู่ระบบ</button>
+            </form>
+        </div>
+    </div>
+    
+    <div id="edit-modal" class="modal" onclick="if(event.target.id === 'edit-modal') closeEditModal()">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeEditModal()">&times;</span>
+            <h2>แก้ไขสถานะการสมัคร</h2>
+            <div id="edit-modal-message" class="alert" style="display: none;"></div>
+            <form id="edit-form" onsubmit="saveEditApplication(event)">
+                <input type="hidden" id="edit-doc-id">
+                <div class="form-group">
+                    <label for="edit-name">ชื่อผู้สมัคร</label>
+                    <input type="text" id="edit-name" disabled style="background-color: #eee;">
+                </div>
+                <div class="form-group">
+                    <label for="edit-status">สถานะ</label>
+                    <select id="edit-status" required>
+                        <option value="Pending">รอพิจารณา</option>
+                        <option value="Approved">อนุมัติ</option>
+                        <option value="Rejected">ไม่อนุมัติ</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">บันทึกการแก้ไข</button>
+            </form>
+        </div>
+    </div>
+
+
+    <div class="footer">
+        &copy; 2024 SPT MORAL SCHOOL - โรงเรียนคุณธรรม สพฐ. โรงเรียนสตรีพัทลุง | All Rights Reserved
+    </div>
+
+</body>
+</html>
