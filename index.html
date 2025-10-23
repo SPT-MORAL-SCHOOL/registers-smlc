@@ -1,0 +1,1446 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบรับสมัครคณะกรรมการนักเรียนขับเคลื่อนโรงเรียนคุณธรรม สพฐ.</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            box-sizing: border-box;
+            font-family: 'Prompt', 'Kanit', sans-serif;
+            background: #ffffff;
+            min-height: 100%;
+            font-weight: 400;
+        }
+        html, body {
+            height: 100%;
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.6s;
+        }
+        .btn-primary:hover::before {
+            left: 100%;
+        }
+        .btn-primary:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4);
+        }
+        .btn-register {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .btn-register::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.6s;
+        }
+        .btn-register:hover::before {
+            left: 100%;
+        }
+        .btn-register:hover {
+            transform: translateY(-4px) scale(1.05);
+            box-shadow: 0 20px 40px rgba(255, 107, 107, 0.4);
+        }
+        .btn-cancel {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+        .btn-cancel:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(231, 76, 60, 0.3);
+        }
+        .fade-in {
+            animation: fadeIn 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        @keyframes fadeIn {
+            from { 
+                opacity: 0; 
+                transform: translateY(30px) scale(0.95);
+            }
+            to { 
+                opacity: 1; 
+                transform: translateY(0) scale(1);
+            }
+        }
+        h1, h2, h3 {
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        .font-medium {
+            font-weight: 500;
+        }
+        .font-bold {
+            font-weight: 700;
+        }
+        input, select {
+            font-family: 'Prompt', 'Kanit', sans-serif;
+            font-weight: 400;
+        }
+        .status-success {
+            background: linear-gradient(135deg, #00b894 0%, #00a085 100%);
+            color: white;
+            border: none;
+        }
+        .status-error {
+            background: linear-gradient(135deg, #e17055 0%, #d63031 100%);
+            color: white;
+            border: none;
+        }
+        .status-info {
+            background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+            color: white;
+            border: none;
+        }
+    </style>
+</head>
+<body class="min-h-full">
+    <div id="app" class="min-h-full flex flex-col">
+        <!-- Header -->
+        <header class="glass border-b border-white/20 p-4">
+            <div class="max-w-6xl mx-auto flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <img src="https://img5.pic.in.th/file/secure-sv1/IMG_25650953161d1c1bbdd8.jpeg" 
+                         alt="โลโก้โรงเรียน" class="w-12 h-12 rounded-full object-cover">
+                    <div>
+                        <h1 class="text-gray-800 font-bold text-lg md:text-xl">ระบบรับสมัครคณะกรรมการนักเรียน</h1>
+                        <p class="text-gray-600 text-sm">โรงเรียนคุณธรรม สพฐ. โรงเรียนสตรีพัทลุง</p>
+                    </div>
+                </div>
+                <button id="logoutBtn" class="hidden bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors">
+                    ออกจากระบบ
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-4">
+            <div class="max-w-6xl mx-auto">
+                <!-- Login Page -->
+                <div id="loginPage" class="fade-in">
+                    <div class="max-w-md mx-auto glass rounded-2xl p-8 shadow-2xl">
+                        <div class="text-center mb-8">
+                            <img src="https://img5.pic.in.th/file/secure-sv1/IMG_25650953161d1c1bbdd8.jpeg" 
+                                 alt="โลโก้โรงเรียน" class="w-20 h-20 rounded-full mx-auto mb-4 object-cover">
+                            <h2 class="text-2xl font-bold text-gray-800 mb-2">เข้าสู่ระบบ</h2>
+                            <p class="text-gray-600">Student Morality Leadership Committee</p>
+                        </div>
+
+                        <!-- Student Login -->
+                        <div id="studentLogin" class="space-y-6">
+                            <div>
+                                <label for="studentId" class="block text-gray-700 font-medium mb-2">เลขประจำตัวนักเรียน</label>
+                                <input type="text" id="studentId" class="w-full px-4 py-3 rounded-xl bg-white border border-gray-300 text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="กรอกเลขประจำตัวนักเรียน">
+                            </div>
+                            <div>
+                                <label for="phoneNumber" class="block text-gray-700 font-medium mb-2">เบอร์โทรศัพท์</label>
+                                <input type="tel" id="phoneNumber" class="w-full px-4 py-3 rounded-xl bg-white border border-gray-300 text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="กรอกเบอร์โทรศัพท์">
+                            </div>
+                            <button id="studentLoginBtn" class="w-full btn-primary text-white font-bold py-3 px-6 rounded-xl">
+                                เข้าสู่ระบบนักเรียน
+                            </button>
+                        </div>
+
+                        <div class="my-6 text-center">
+                            <span class="text-gray-500">หรือ</span>
+                        </div>
+
+                        <!-- Admin Login Toggle -->
+                        <button id="adminToggle" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-6 rounded-xl transition-colors border border-gray-300">
+                            เข้าสู่ระบบผู้ดูแล
+                        </button>
+
+                        <!-- Admin Login (Hidden by default) -->
+                        <div id="adminLogin" class="hidden space-y-6 mt-6">
+                            <div>
+                                <label for="adminEmail" class="block text-gray-700 font-medium mb-2">อีเมลผู้ดูแล</label>
+                                <input type="email" id="adminEmail" class="w-full px-4 py-3 rounded-xl bg-white border border-gray-300 text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="กรอกอีเมลผู้ดูแล">
+                            </div>
+                            <div>
+                                <label for="adminPassword" class="block text-gray-700 font-medium mb-2">รหัสผ่าน</label>
+                                <input type="password" id="adminPassword" class="w-full px-4 py-3 rounded-xl bg-white border border-gray-300 text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="กรอกรหัสผ่าน">
+                            </div>
+                            <button id="adminLoginBtn" class="w-full btn-primary text-white font-bold py-3 px-6 rounded-xl">
+                                เข้าสู่ระบบผู้ดูแล
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Student Dashboard -->
+                <div id="studentDashboard" class="hidden fade-in">
+                    <div class="max-w-2xl mx-auto glass rounded-2xl p-8 shadow-2xl">
+                        <div class="text-center mb-8">
+                            <h2 class="text-2xl font-bold text-gray-800 mb-4">ข้อมูลนักเรียน</h2>
+                            <div id="studentInfo" class="bg-blue-50 border border-blue-200 rounded-xl p-6 text-gray-800">
+                                <!-- Student info will be populated here -->
+                            </div>
+                        </div>
+
+                        <div class="text-center">
+                            <div id="countdownTimer" class="mb-6 hidden">
+                                <!-- Countdown timer will be shown here -->
+                            </div>
+                            <div id="registrationStatus" class="mb-6">
+                                <!-- Registration status will be shown here -->
+                            </div>
+                            <button id="registerBtn" class="btn-register text-white font-bold py-5 px-10 rounded-2xl text-xl shadow-2xl">
+                                🎯 สมัครเป็นคณะกรรมการนักเรียนขับเคลื่อนโรงเรียนคุณธรรม
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Admin Dashboard -->
+                <div id="adminDashboard" class="hidden fade-in space-y-6">
+                    <!-- Admin Controls -->
+                    <div class="glass rounded-2xl p-6 shadow-2xl">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-6">การจัดการระบบ</h2>
+                        <div class="grid md:grid-cols-2 gap-6">
+                            <div class="space-y-4">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-700 font-medium">สถานะการรับสมัคร</span>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="registrationToggle" class="sr-only peer">
+                                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                                    </label>
+                                </div>
+                                <button id="csvImportBtn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 px-4 rounded-xl transition-colors">
+                                    นำเข้าข้อมูลนักเรียน (CSV)
+                                </button>
+                                <input type="file" id="csvFileInput" accept=".csv" class="hidden">
+                                <button id="addStudentBtn" class="w-full bg-green-500 hover:bg-green-600 text-white font-medium py-3 px-4 rounded-xl transition-colors">
+                                    เพิ่มนักเรียนรายบุคคล
+                                </button>
+                                <button id="clearStudentsBtn" class="w-full bg-red-500 hover:bg-red-600 text-white font-medium py-3 px-4 rounded-xl transition-colors">
+                                    ล้างข้อมูลนักเรียนทั้งหมด
+                                </button>
+                            </div>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-gray-700 font-medium mb-2">ตั้งเวลาเปิดรับสมัคร</label>
+                                    <input type="datetime-local" id="openDateTime" class="w-full px-3 py-2 rounded-lg bg-white border border-gray-300 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-gray-700 font-medium mb-2">ตั้งเวลาปิดรับสมัคร</label>
+                                    <input type="datetime-local" id="closeDateTime" class="w-full px-3 py-2 rounded-lg bg-white border border-gray-300 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                </div>
+                                <button id="setScheduleBtn" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-medium py-3 px-4 rounded-xl transition-colors mb-2">
+                                    ตั้งเวลาอัตโนมัติ
+                                </button>
+                                <button id="clearScheduleBtn" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-medium py-3 px-4 rounded-xl transition-colors">
+                                    ล้างการตั้งเวลาอัตโนมัติ
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Export Button -->
+                    <div class="glass rounded-2xl p-6 shadow-2xl">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-xl font-bold text-gray-800">รายชื่อผู้สมัคร</h3>
+                            <button id="exportBtn" class="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-lg transition-colors">
+                                ส่งออก CSV
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-gray-800">
+                                <thead>
+                                    <tr class="border-b border-gray-200 bg-gray-50">
+                                        <th class="text-left py-3 px-2 font-semibold">รหัสนักเรียน</th>
+                                        <th class="text-left py-3 px-2 font-semibold">ชื่อ-นามสกุล</th>
+                                        <th class="text-left py-3 px-2 font-semibold">ชั้น</th>
+                                        <th class="text-left py-3 px-2 font-semibold">เบอร์โทร</th>
+                                        <th class="text-left py-3 px-2 font-semibold">เวลาสมัคร</th>
+                                        <th class="text-left py-3 px-2 font-semibold">จัดการ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="applicantsTable">
+                                    <!-- Applicants will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- All Students Table -->
+                    <div class="glass rounded-2xl p-6 shadow-2xl">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4">ข้อมูลนักเรียนทั้งหมด</h3>
+                        
+                        <!-- Filter Controls -->
+                        <div class="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div>
+                                <label class="block text-gray-700 font-medium mb-2">ค้นหา</label>
+                                <input type="text" id="searchStudent" class="w-full px-3 py-2 rounded-lg bg-white border border-gray-300 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="ค้นหาชื่อ, รหัส, เบอร์โทร">
+                            </div>
+                            <div>
+                                <label class="block text-gray-700 font-medium mb-2">ชั้น</label>
+                                <select id="filterGrade" class="w-full px-3 py-2 rounded-lg bg-white border border-gray-300 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">ทุกชั้น</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-gray-700 font-medium mb-2">สถานะการสมัคร</label>
+                                <select id="filterStatus" class="w-full px-3 py-2 rounded-lg bg-white border border-gray-300 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">ทั้งหมด</option>
+                                    <option value="applied">สมัครแล้ว</option>
+                                    <option value="not-applied">ยังไม่สมัคร</option>
+                                </select>
+                            </div>
+                            <div class="flex items-end">
+                                <button id="clearFiltersBtn" class="w-full bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-lg transition-colors">
+                                    ล้างตัวกรอง
+                                </button>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-gray-800">
+                                <thead>
+                                    <tr class="border-b border-gray-200 bg-gray-50">
+                                        <th class="text-left py-3 px-2 font-semibold">รหัสนักเรียน</th>
+                                        <th class="text-left py-3 px-2 font-semibold">ชื่อ-นามสกุล</th>
+                                        <th class="text-left py-3 px-2 font-semibold">ชั้น</th>
+                                        <th class="text-left py-3 px-2 font-semibold">เบอร์โทร</th>
+                                        <th class="text-left py-3 px-2 font-semibold">สถานะ</th>
+                                        <th class="text-left py-3 px-2 font-semibold">จัดการ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="allStudentsTable">
+                                    <!-- All students will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="glass border-t border-gray-200 p-4 mt-8">
+            <div class="max-w-6xl mx-auto text-center text-gray-600 text-sm">
+                &copy; 2024 SPT MORAL SCHOOL - โรงเรียนคุณธรรม สพฐ. โรงเรียนสตรีพัทลุง | All Rights Reserved
+            </div>
+        </footer>
+
+        <!-- Loading Overlay -->
+        <div id="loadingOverlay" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div class="glass rounded-2xl p-8 text-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                <p class="text-gray-800 font-medium">กำลังโหลด...</p>
+            </div>
+        </div>
+
+        <!-- Add Student Modal -->
+        <div id="addStudentModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div class="glass rounded-2xl p-8 max-w-md w-full mx-4">
+                <h3 class="text-xl font-bold text-gray-800 mb-6">เพิ่มนักเรียนใหม่</h3>
+                <form id="addStudentForm" class="space-y-4">
+                    <div>
+                        <label class="block text-gray-700 font-medium mb-2">รหัสนักเรียน</label>
+                        <input type="text" id="addStudentId" class="w-full px-3 py-2 rounded-lg bg-white border border-gray-300 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-2">ชั้น</label>
+                            <input type="text" id="addGrade" class="w-full px-3 py-2 rounded-lg bg-white border border-gray-300 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-2">ห้อง</label>
+                            <input type="text" id="addRoom" class="w-full px-3 py-2 rounded-lg bg-white border border-gray-300 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-medium mb-2">คำนำหน้า</label>
+                        <select id="addPrefix" class="w-full px-3 py-2 rounded-lg bg-white border border-gray-300 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                            <option value="นาย">นาย</option>
+                            <option value="นางสาว">นางสาว</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-medium mb-2">ชื่อ</label>
+                        <input type="text" id="addFirstName" class="w-full px-3 py-2 rounded-lg bg-white border border-gray-300 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-medium mb-2">นามสกุล</label>
+                        <input type="text" id="addLastName" class="w-full px-3 py-2 rounded-lg bg-white border border-gray-300 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-medium mb-2">ชื่อเล่น</label>
+                        <input type="text" id="addNickname" class="w-full px-3 py-2 rounded-lg bg-white border border-gray-300 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-medium mb-2">เบอร์โทรศัพท์</label>
+                        <input type="tel" id="addPhone" class="w-full px-3 py-2 rounded-lg bg-white border border-gray-300 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                    <div class="flex space-x-4 pt-4">
+                        <button type="submit" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-medium py-3 px-4 rounded-lg transition-colors">
+                            เพิ่มนักเรียน
+                        </button>
+                        <button type="button" id="cancelAddBtn" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-medium py-3 px-4 rounded-lg transition-colors">
+                            ยกเลิก
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Edit Student Modal -->
+        <div id="editStudentModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div class="glass rounded-2xl p-8 max-w-md w-full mx-4">
+                <h3 class="text-xl font-bold text-gray-800 mb-6">แก้ไขข้อมูลนักเรียน</h3>
+                <form id="editStudentForm" class="space-y-4">
+                    <input type="hidden" id="editStudentDocId">
+                    <div>
+                        <label class="block text-gray-700 font-medium mb-2">รหัสนักเรียน</label>
+                        <input type="text" id="editStudentId" class="w-full px-3 py-2 rounded-lg bg-white border border-gray-300 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-2">ชั้น</label>
+                            <input type="text" id="editGrade" class="w-full px-3 py-2 rounded-lg bg-white border border-gray-300 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-2">ห้อง</label>
+                            <input type="text" id="editRoom" class="w-full px-3 py-2 rounded-lg bg-white border border-gray-300 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-medium mb-2">คำนำหน้า</label>
+                        <select id="editPrefix" class="w-full px-3 py-2 rounded-lg bg-white border border-gray-300 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="นาย">นาย</option>
+                            <option value="นางสาว">นางสาว</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-medium mb-2">ชื่อ</label>
+                        <input type="text" id="editFirstName" class="w-full px-3 py-2 rounded-lg bg-white border border-gray-300 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-medium mb-2">นามสกุล</label>
+                        <input type="text" id="editLastName" class="w-full px-3 py-2 rounded-lg bg-white border border-gray-300 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-medium mb-2">ชื่อเล่น</label>
+                        <input type="text" id="editNickname" class="w-full px-3 py-2 rounded-lg bg-white border border-gray-300 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-medium mb-2">เบอร์โทรศัพท์</label>
+                        <input type="tel" id="editPhone" class="w-full px-3 py-2 rounded-lg bg-white border border-gray-300 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="flex space-x-4 pt-4">
+                        <button type="submit" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 px-4 rounded-lg transition-colors">
+                            บันทึก
+                        </button>
+                        <button type="button" id="cancelEditBtn" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-medium py-3 px-4 rounded-lg transition-colors">
+                            ยกเลิก
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Confirmation Modal -->
+        <div id="confirmModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div class="glass rounded-2xl p-8 max-w-md w-full mx-4">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">ยืนยันการดำเนินการ</h3>
+                <p id="confirmMessage" class="text-gray-700 mb-6"></p>
+                <div class="flex space-x-4">
+                    <button id="confirmYes" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-medium py-3 px-4 rounded-lg transition-colors">
+                        ยืนยัน
+                    </button>
+                    <button id="confirmNo" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-medium py-3 px-4 rounded-lg transition-colors">
+                        ยกเลิก
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAeb6p1EkjJqbnSb0wG9IV0uv1wSoVWMOI",
+            authDomain: "smlc-regis.firebaseapp.com",
+            projectId: "smlc-regis",
+            storageBucket: "smlc-regis.firebasestorage.app",
+            messagingSenderId: "267775551981",
+            appId: "1:267775551981:web:e3a27611fa18337128dfe4",
+            measurementId: "G-S2S41025VT"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // Global variables
+        let currentUser = null;
+        let isAdmin = false;
+        let registrationOpen = true;
+
+        // DOM Elements
+        const loginPage = document.getElementById('loginPage');
+        const studentDashboard = document.getElementById('studentDashboard');
+        const adminDashboard = document.getElementById('adminDashboard');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+
+        // Show loading
+        function showLoading() {
+            loadingOverlay.classList.remove('hidden');
+        }
+
+        // Hide loading
+        function hideLoading() {
+            loadingOverlay.classList.add('hidden');
+        }
+
+        // Show notification
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 p-4 rounded-lg text-white z-50 ${
+                type === 'success' ? 'bg-green-500' : 
+                type === 'error' ? 'bg-red-500' : 'bg-blue-500'
+            }`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        // Toggle admin login form
+        document.getElementById('adminToggle').addEventListener('click', () => {
+            const adminLogin = document.getElementById('adminLogin');
+            const studentLogin = document.getElementById('studentLogin');
+            
+            if (adminLogin.classList.contains('hidden')) {
+                adminLogin.classList.remove('hidden');
+                studentLogin.classList.add('hidden');
+                document.getElementById('adminToggle').textContent = 'เข้าสู่ระบบนักเรียน';
+            } else {
+                adminLogin.classList.add('hidden');
+                studentLogin.classList.remove('hidden');
+                document.getElementById('adminToggle').textContent = 'เข้าสู่ระบบผู้ดูแล';
+            }
+        });
+
+        // Student login
+        document.getElementById('studentLoginBtn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            const studentId = document.getElementById('studentId').value.trim();
+            const phoneNumber = document.getElementById('phoneNumber').value.trim();
+
+            if (!studentId || !phoneNumber) {
+                showNotification('กรุณากรอกข้อมูลให้ครบถ้วน', 'error');
+                return;
+            }
+
+            showLoading();
+            try {
+                // Check if student exists in database
+                const studentQuery = await db.collection('students')
+                    .where('studentId', '==', studentId)
+                    .where('phone', '==', phoneNumber)
+                    .get();
+
+                if (studentQuery.empty) {
+                    showNotification('ไม่พบข้อมูลนักเรียน กรุณาตรวจสอบข้อมูลอีกครั้ง', 'error');
+                    hideLoading();
+                    return;
+                }
+
+                const studentData = studentQuery.docs[0].data();
+                currentUser = { ...studentData, docId: studentQuery.docs[0].id };
+                isAdmin = false;
+
+                showStudentDashboard();
+                hideLoading();
+                showNotification('เข้าสู่ระบบสำเร็จ', 'success');
+            } catch (error) {
+                console.error('Login error:', error);
+                showNotification('เกิดข้อผิดพลาดในการเข้าสู่ระบบ', 'error');
+                hideLoading();
+            }
+        });
+
+        // Admin login
+        document.getElementById('adminLoginBtn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('adminEmail').value.trim();
+            const password = document.getElementById('adminPassword').value.trim();
+
+            if (!email || !password) {
+                showNotification('กรุณากรอกข้อมูลให้ครบถ้วน', 'error');
+                return;
+            }
+
+            showLoading();
+            try {
+                await auth.signInWithEmailAndPassword(email, password);
+                isAdmin = true;
+                showAdminDashboard();
+                hideLoading();
+                showNotification('เข้าสู่ระบบผู้ดูแลสำเร็จ', 'success');
+            } catch (error) {
+                console.error('Admin login error:', error);
+                showNotification('อีเมลหรือรหัสผ่านไม่ถูกต้อง', 'error');
+                hideLoading();
+            }
+        });
+
+        // Show student dashboard
+        function showStudentDashboard() {
+            loginPage.classList.add('hidden');
+            studentDashboard.classList.remove('hidden');
+            adminDashboard.classList.add('hidden');
+            document.getElementById('logoutBtn').classList.remove('hidden');
+
+            // Display student info
+            const studentInfo = document.getElementById('studentInfo');
+            studentInfo.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+                    <div><strong>รหัสนักเรียน:</strong> ${currentUser.studentId}</div>
+                    <div><strong>ชื่อ-นามสกุล:</strong> ${currentUser.prefix} ${currentUser.firstName} ${currentUser.lastName}</div>
+                    <div><strong>ชื่อเล่น:</strong> ${currentUser.nickname}</div>
+                    <div><strong>ชั้น:</strong> ${currentUser.grade}/${currentUser.room}</div>
+                    <div><strong>เบอร์โทร:</strong> ${currentUser.phone}</div>
+                </div>
+            `;
+
+            checkRegistrationStatus();
+        }
+
+        // Global countdown timer variable
+        let countdownInterval = null;
+
+        // Update countdown timer
+        function updateCountdown(targetDate, isOpening = true) {
+            const countdownTimer = document.getElementById('countdownTimer');
+            
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+            }
+
+            countdownInterval = setInterval(() => {
+                const now = new Date().getTime();
+                const distance = targetDate.getTime() - now;
+
+                if (distance < 0) {
+                    clearInterval(countdownInterval);
+                    countdownTimer.classList.add('hidden');
+                    checkRegistrationStatus(); // Refresh status
+                    return;
+                }
+
+                const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+                const actionText = isOpening ? 'เปิดรับสมัคร' : 'ปิดรับสมัคร';
+                const bgColor = isOpening ? 'bg-blue-500' : 'bg-orange-500';
+
+                countdownTimer.innerHTML = `
+                    <div class="${bgColor} text-white rounded-2xl p-6 shadow-xl">
+                        <h3 class="font-bold text-xl mb-3">⏰ เหลือเวลา${actionText}</h3>
+                        <div class="grid grid-cols-4 gap-4 text-center">
+                            <div class="bg-white/20 rounded-lg p-3">
+                                <div class="text-2xl font-bold">${days}</div>
+                                <div class="text-sm">วัน</div>
+                            </div>
+                            <div class="bg-white/20 rounded-lg p-3">
+                                <div class="text-2xl font-bold">${hours}</div>
+                                <div class="text-sm">ชั่วโมง</div>
+                            </div>
+                            <div class="bg-white/20 rounded-lg p-3">
+                                <div class="text-2xl font-bold">${minutes}</div>
+                                <div class="text-sm">นาที</div>
+                            </div>
+                            <div class="bg-white/20 rounded-lg p-3">
+                                <div class="text-2xl font-bold">${seconds}</div>
+                                <div class="text-sm">วินาที</div>
+                            </div>
+                        </div>
+                        <p class="text-sm opacity-90 mt-3">${actionText}: ${targetDate.toLocaleString('th-TH')}</p>
+                    </div>
+                `;
+                countdownTimer.classList.remove('hidden');
+            }, 1000);
+        }
+
+        // Check registration status
+        async function checkRegistrationStatus() {
+            try {
+                const applicantQuery = await db.collection('applicants')
+                    .where('studentId', '==', currentUser.studentId)
+                    .get();
+
+                const registrationStatus = document.getElementById('registrationStatus');
+                const registerBtn = document.getElementById('registerBtn');
+                const countdownTimer = document.getElementById('countdownTimer');
+
+                if (!applicantQuery.empty) {
+                    const applicantDocId = applicantQuery.docs[0].id;
+                    registrationStatus.innerHTML = `
+                        <div class="status-success rounded-2xl p-6 shadow-xl">
+                            <h3 class="font-bold text-xl mb-3">✅ สมัครเรียบร้อยแล้ว</h3>
+                            <p class="text-lg mb-2">คุณได้สมัครเป็นคณะกรรมการนักเรียนขับเคลื่อนโรงเรียนคุณธรรมเรียบร้อยแล้ว</p>
+                            <p class="text-sm opacity-90 mt-3">เวลาที่สมัคร: ${applicantQuery.docs[0].data().timestamp?.toDate().toLocaleString('th-TH')}</p>
+                            <button onclick="cancelMyApplication('${applicantDocId}')" class="mt-5 btn-cancel text-white font-semibold py-3 px-6 rounded-xl transition-all">
+                                🚫 ยกเลิกการสมัคร
+                            </button>
+                        </div>
+                    `;
+                    registerBtn.style.display = 'none';
+                    countdownTimer.classList.add('hidden');
+                    if (countdownInterval) clearInterval(countdownInterval);
+                } else {
+                    // Check if registration is open and get schedule
+                    const settingsDoc = await db.collection('settings').doc('registration').get();
+                    const settings = settingsDoc.data() || {};
+                    
+                    const now = new Date();
+                    
+                    // Check for scheduled times
+                    if (settings.openDateTime && settings.closeDateTime) {
+                        const openTime = settings.openDateTime.toDate();
+                        const closeTime = settings.closeDateTime.toDate();
+                        
+                        if (now < openTime) {
+                            // Before opening time - show countdown to opening
+                            updateCountdown(openTime, true);
+                            registrationStatus.innerHTML = `
+                                <div class="status-info rounded-2xl p-6 shadow-xl">
+                                    <h3 class="font-bold text-xl mb-3">⏳ ยังไม่เปิดรับสมัคร</h3>
+                                    <p class="text-lg">การรับสมัครจะเปิดในเวลาที่กำหนด</p>
+                                </div>
+                            `;
+                            registerBtn.style.display = 'none';
+                        } else if (now >= openTime && now <= closeTime) {
+                            // During registration period - show countdown to closing
+                            updateCountdown(closeTime, false);
+                            registrationStatus.innerHTML = `
+                                <div class="status-success rounded-2xl p-6 shadow-xl">
+                                    <h3 class="font-bold text-xl mb-3">📝 เปิดรับสมัคร</h3>
+                                    <p class="text-lg">คุณสามารถสมัครเป็นคณะกรรมการนักเรียนขับเคลื่อนโรงเรียนคุณธรรมได้</p>
+                                </div>
+                            `;
+                            registerBtn.style.display = 'block';
+                        } else {
+                            // After closing time
+                            countdownTimer.classList.add('hidden');
+                            if (countdownInterval) clearInterval(countdownInterval);
+                            registrationStatus.innerHTML = `
+                                <div class="status-error rounded-2xl p-6 shadow-xl">
+                                    <h3 class="font-bold text-xl mb-3">❌ ปิดรับสมัครแล้ว</h3>
+                                    <p class="text-lg">ขณะนี้ไม่เปิดรับสมัครคณะกรรมการนักเรียนขับเคลื่อนโรงเรียนคุณธรรม</p>
+                                </div>
+                            `;
+                            registerBtn.style.display = 'none';
+                        }
+                    } else {
+                        // Manual control - no scheduled times
+                        countdownTimer.classList.add('hidden');
+                        if (countdownInterval) clearInterval(countdownInterval);
+                        
+                        if (!settings.isOpen) {
+                            registrationStatus.innerHTML = `
+                                <div class="status-error rounded-2xl p-6 shadow-xl">
+                                    <h3 class="font-bold text-xl mb-3">❌ ปิดรับสมัครแล้ว</h3>
+                                    <p class="text-lg">ขณะนี้ไม่เปิดรับสมัครคณะกรรมการนักเรียนขับเคลื่อนโรงเรียนคุณธรรม</p>
+                                </div>
+                            `;
+                            registerBtn.style.display = 'none';
+                        } else {
+                            registrationStatus.innerHTML = `
+                                <div class="status-info rounded-2xl p-6 shadow-xl">
+                                    <h3 class="font-bold text-xl mb-3">📝 เปิดรับสมัคร</h3>
+                                    <p class="text-lg">คุณสามารถสมัครเป็นคณะกรรมการนักเรียนขับเคลื่อนโรงเรียนคุณธรรมได้</p>
+                                </div>
+                            `;
+                            registerBtn.style.display = 'block';
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking registration status:', error);
+            }
+        }
+
+        // Register for committee
+        document.getElementById('registerBtn').addEventListener('click', async () => {
+            showLoading();
+            try {
+                await db.collection('applicants').add({
+                    studentId: currentUser.studentId,
+                    prefix: currentUser.prefix,
+                    firstName: currentUser.firstName,
+                    lastName: currentUser.lastName,
+                    nickname: currentUser.nickname,
+                    grade: currentUser.grade,
+                    room: currentUser.room,
+                    phone: currentUser.phone,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                hideLoading();
+                showNotification('สมัครเรียบร้อยแล้ว!', 'success');
+                checkRegistrationStatus();
+            } catch (error) {
+                console.error('Registration error:', error);
+                hideLoading();
+                showNotification('เกิดข้อผิดพลาดในการสมัคร', 'error');
+            }
+        });
+
+        // Show admin dashboard
+        async function showAdminDashboard() {
+            loginPage.classList.add('hidden');
+            studentDashboard.classList.add('hidden');
+            adminDashboard.classList.remove('hidden');
+            document.getElementById('logoutBtn').classList.remove('hidden');
+
+            await loadAdminData();
+        }
+
+        // Global variables for filtering
+        let allStudentsData = [];
+        let applicantIds = new Set();
+
+        // Load admin data
+        async function loadAdminData() {
+            try {
+                // Load settings
+                const settingsDoc = await db.collection('settings').doc('registration').get();
+                const settings = settingsDoc.data() || { isOpen: true };
+                
+                document.getElementById('registrationToggle').checked = settings.isOpen;
+
+                // Load existing schedule if available
+                if (settings.openDateTime && settings.closeDateTime) {
+                    const openDate = settings.openDateTime.toDate();
+                    const closeDate = settings.closeDateTime.toDate();
+                    
+                    // Format dates for datetime-local input
+                    const formatDateTime = (date) => {
+                        const year = date.getFullYear();
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const day = String(date.getDate()).padStart(2, '0');
+                        const hours = String(date.getHours()).padStart(2, '0');
+                        const minutes = String(date.getMinutes()).padStart(2, '0');
+                        return `${year}-${month}-${day}T${hours}:${minutes}`;
+                    };
+                    
+                    document.getElementById('openDateTime').value = formatDateTime(openDate);
+                    document.getElementById('closeDateTime').value = formatDateTime(closeDate);
+                }
+
+                // Load applicants
+                const applicantsSnapshot = await db.collection('applicants').orderBy('timestamp', 'desc').get();
+                const applicantsTable = document.getElementById('applicantsTable');
+                applicantsTable.innerHTML = '';
+
+                // Reset applicant IDs
+                applicantIds.clear();
+
+                applicantsSnapshot.forEach(doc => {
+                    const data = doc.data();
+                    applicantIds.add(data.studentId);
+                    
+                    const row = document.createElement('tr');
+                    row.className = 'border-b border-gray-200 hover:bg-gray-50';
+                    row.innerHTML = `
+                        <td class="py-3 px-2">${data.studentId}</td>
+                        <td class="py-3 px-2">${data.prefix} ${data.firstName} ${data.lastName}</td>
+                        <td class="py-3 px-2">${data.grade}/${data.room}</td>
+                        <td class="py-3 px-2">${data.phone}</td>
+                        <td class="py-3 px-2">${data.timestamp?.toDate().toLocaleString('th-TH') || 'N/A'}</td>
+                        <td class="py-3 px-2">
+                            <button onclick="cancelApplication('${doc.id}', '${data.studentId}')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm transition-colors">
+                                ยกเลิกการสมัคร
+                            </button>
+                        </td>
+                    `;
+                    applicantsTable.appendChild(row);
+                });
+
+                // Load all students
+                const studentsSnapshot = await db.collection('students').get();
+                allStudentsData = [];
+                const grades = new Set();
+
+                studentsSnapshot.forEach(doc => {
+                    const data = { ...doc.data(), docId: doc.id };
+                    allStudentsData.push(data);
+                    if (data.grade) grades.add(data.grade);
+                });
+
+                // Populate grade filter
+                const gradeFilter = document.getElementById('filterGrade');
+                gradeFilter.innerHTML = '<option value="">ทุกชั้น</option>';
+                Array.from(grades).sort().forEach(grade => {
+                    gradeFilter.innerHTML += `<option value="${grade}">ม.${grade}</option>`;
+                });
+
+                // Display filtered students
+                displayFilteredStudents();
+
+            } catch (error) {
+                console.error('Error loading admin data:', error);
+                showNotification('เกิดข้อผิดพลาดในการโหลดข้อมูล', 'error');
+            }
+        }
+
+        // Display filtered students
+        function displayFilteredStudents() {
+            const searchTerm = document.getElementById('searchStudent').value.toLowerCase();
+            const gradeFilter = document.getElementById('filterGrade').value;
+            const statusFilter = document.getElementById('filterStatus').value;
+            
+            const allStudentsTable = document.getElementById('allStudentsTable');
+            allStudentsTable.innerHTML = '';
+
+            const filteredStudents = allStudentsData.filter(data => {
+                // Search filter
+                const searchMatch = !searchTerm || 
+                    data.studentId?.toLowerCase().includes(searchTerm) ||
+                    `${data.firstName} ${data.lastName}`.toLowerCase().includes(searchTerm) ||
+                    data.phone?.toLowerCase().includes(searchTerm) ||
+                    data.nickname?.toLowerCase().includes(searchTerm);
+
+                // Grade filter
+                const gradeMatch = !gradeFilter || data.grade === gradeFilter;
+
+                // Status filter
+                const isApplicant = applicantIds.has(data.studentId);
+                const statusMatch = !statusFilter || 
+                    (statusFilter === 'applied' && isApplicant) ||
+                    (statusFilter === 'not-applied' && !isApplicant);
+
+                return searchMatch && gradeMatch && statusMatch;
+            });
+
+            filteredStudents.forEach(data => {
+                const row = document.createElement('tr');
+                row.className = 'border-b border-gray-200 hover:bg-gray-50';
+                const isApplicant = applicantIds.has(data.studentId);
+                row.innerHTML = `
+                    <td class="py-3 px-2">${data.studentId}</td>
+                    <td class="py-3 px-2">${data.prefix} ${data.firstName} ${data.lastName}</td>
+                    <td class="py-3 px-2">${data.grade}/${data.room}</td>
+                    <td class="py-3 px-2">${data.phone}</td>
+                    <td class="py-3 px-2">
+                        <span class="px-2 py-1 rounded-full text-xs text-white ${isApplicant ? 'bg-green-500' : 'bg-gray-500'}">
+                            ${isApplicant ? 'สมัครแล้ว' : 'ยังไม่สมัคร'}
+                        </span>
+                    </td>
+                    <td class="py-3 px-2">
+                        <button onclick="editStudent('${data.docId}', ${JSON.stringify(data).replace(/"/g, '&quot;')})" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-colors mr-2">
+                            แก้ไข
+                        </button>
+                        <button onclick="deleteStudent('${data.docId}', '${data.studentId}')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm transition-colors">
+                            ลบ
+                        </button>
+                    </td>
+                `;
+                allStudentsTable.appendChild(row);
+            });
+
+            // Show count
+            const totalCount = allStudentsData.length;
+            const filteredCount = filteredStudents.length;
+            if (totalCount !== filteredCount) {
+                const countInfo = document.createElement('tr');
+                countInfo.innerHTML = `
+                    <td colspan="6" class="py-2 px-2 text-center text-gray-600 bg-blue-50">
+                        แสดง ${filteredCount} จาก ${totalCount} รายการ
+                    </td>
+                `;
+                allStudentsTable.appendChild(countInfo);
+            }
+        }
+
+        // Registration toggle
+        document.getElementById('registrationToggle').addEventListener('change', async (e) => {
+            try {
+                await db.collection('settings').doc('registration').set({
+                    isOpen: e.target.checked
+                }, { merge: true });
+                
+                showNotification(e.target.checked ? 'เปิดรับสมัครแล้ว' : 'ปิดรับสมัครแล้ว', 'success');
+            } catch (error) {
+                console.error('Error updating registration status:', error);
+                showNotification('เกิดข้อผิดพลาดในการอัพเดทสถานะ', 'error');
+            }
+        });
+
+        // Set schedule
+        document.getElementById('setScheduleBtn').addEventListener('click', async () => {
+            const openDateTime = document.getElementById('openDateTime').value;
+            const closeDateTime = document.getElementById('closeDateTime').value;
+
+            if (!openDateTime || !closeDateTime) {
+                showNotification('กรุณาเลือกวันเวลาให้ครบถ้วน', 'error');
+                return;
+            }
+
+            try {
+                await db.collection('settings').doc('registration').set({
+                    openDateTime: new Date(openDateTime),
+                    closeDateTime: new Date(closeDateTime),
+                    autoSchedule: true
+                }, { merge: true });
+
+                showNotification('ตั้งเวลาอัตโนมัติเรียบร้อยแล้ว', 'success');
+            } catch (error) {
+                console.error('Error setting schedule:', error);
+                showNotification('เกิดข้อผิดพลาดในการตั้งเวลา', 'error');
+            }
+        });
+
+        // Clear schedule
+        document.getElementById('clearScheduleBtn').addEventListener('click', async () => {
+            showConfirmation(
+                'คุณต้องการล้างการตั้งเวลาอัตโนมัติหรือไม่? ระบบจะกลับไปใช้การเปิด/ปิดแบบแมนนวลเท่านั้น',
+                async () => {
+                    showLoading();
+                    try {
+                        await db.collection('settings').doc('registration').update({
+                            openDateTime: firebase.firestore.FieldValue.delete(),
+                            closeDateTime: firebase.firestore.FieldValue.delete(),
+                            autoSchedule: false
+                        });
+
+                        // Clear the datetime inputs
+                        document.getElementById('openDateTime').value = '';
+                        document.getElementById('closeDateTime').value = '';
+
+                        hideLoading();
+                        showNotification('ล้างการตั้งเวลาอัตโนมัติเรียบร้อยแล้ว', 'success');
+                    } catch (error) {
+                        console.error('Clear schedule error:', error);
+                        hideLoading();
+                        showNotification('เกิดข้อผิดพลาดในการล้างการตั้งเวลา', 'error');
+                    }
+                }
+            );
+        });
+
+        // CSV Import
+        document.getElementById('csvImportBtn').addEventListener('click', () => {
+            document.getElementById('csvFileInput').click();
+        });
+
+        // Clear all students
+        document.getElementById('clearStudentsBtn').addEventListener('click', () => {
+            showConfirmation(
+                'คุณต้องการล้างข้อมูลนักเรียนทั้งหมดหรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้',
+                async () => {
+                    showLoading();
+                    try {
+                        // Get all students
+                        const studentsSnapshot = await db.collection('students').get();
+                        const batch = db.batch();
+                        
+                        studentsSnapshot.forEach(doc => {
+                            batch.delete(doc.ref);
+                        });
+                        
+                        // Also clear all applicants
+                        const applicantsSnapshot = await db.collection('applicants').get();
+                        applicantsSnapshot.forEach(doc => {
+                            batch.delete(doc.ref);
+                        });
+                        
+                        await batch.commit();
+                        hideLoading();
+                        showNotification('ล้างข้อมูลนักเรียนทั้งหมดเรียบร้อยแล้ว', 'success');
+                        await loadAdminData();
+                    } catch (error) {
+                        console.error('Clear students error:', error);
+                        hideLoading();
+                        showNotification('เกิดข้อผิดพลาดในการล้างข้อมูล', 'error');
+                    }
+                }
+            );
+        });
+
+        document.getElementById('csvFileInput').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            showLoading();
+            try {
+                const text = await file.text();
+                const lines = text.split('\n');
+                const batch = db.batch();
+
+                for (let i = 1; i < lines.length; i++) { // Skip header
+                    const line = lines[i].trim();
+                    if (!line) continue;
+
+                    const [studentId, grade, room, prefix, firstName, lastName, nickname, phone] = line.split(',');
+                    
+                    if (studentId) {
+                        const docRef = db.collection('students').doc();
+                        batch.set(docRef, {
+                            studentId: studentId.trim(),
+                            grade: grade?.trim() || '',
+                            room: room?.trim() || '',
+                            prefix: prefix?.trim() || '',
+                            firstName: firstName?.trim() || '',
+                            lastName: lastName?.trim() || '',
+                            nickname: nickname?.trim() || '',
+                            phone: phone?.trim() || '',
+                            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    }
+                }
+
+                await batch.commit();
+                hideLoading();
+                showNotification('นำเข้าข้อมูลเรียบร้อยแล้ว', 'success');
+                await loadAdminData();
+            } catch (error) {
+                console.error('CSV import error:', error);
+                hideLoading();
+                showNotification('เกิดข้อผิดพลาดในการนำเข้าข้อมูล', 'error');
+            }
+        });
+
+        // CSV Export
+        document.getElementById('exportBtn').addEventListener('click', async () => {
+            try {
+                const applicantsSnapshot = await db.collection('applicants').orderBy('timestamp', 'desc').get();
+                
+                let csv = 'รหัสนักเรียน,ชั้น,ห้อง,คำนำหน้า,ชื่อ,นามสกุล,ชื่อเล่น,โทรศัพท์,เวลาสมัคร\n';
+                
+                applicantsSnapshot.forEach(doc => {
+                    const data = doc.data();
+                    csv += `${data.studentId},${data.grade},${data.room},${data.prefix},${data.firstName},${data.lastName},${data.nickname},${data.phone},${data.timestamp?.toDate().toLocaleString('th-TH') || 'N/A'}\n`;
+                });
+
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `SPT-SMLC-REGIS-APPLICATIONS_${new Date().toISOString().split('T')[0]}.csv`;
+                link.click();
+
+                showNotification('ส่งออกข้อมูลเรียบร้อยแล้ว', 'success');
+            } catch (error) {
+                console.error('Export error:', error);
+                showNotification('เกิดข้อผิดพลาดในการส่งออกข้อมูล', 'error');
+            }
+        });
+
+        // Logout
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            try {
+                if (isAdmin) {
+                    await auth.signOut();
+                }
+                
+                currentUser = null;
+                isAdmin = false;
+                
+                loginPage.classList.remove('hidden');
+                studentDashboard.classList.add('hidden');
+                adminDashboard.classList.add('hidden');
+                document.getElementById('logoutBtn').classList.add('hidden');
+                
+                // Reset forms
+                document.getElementById('studentId').value = '';
+                document.getElementById('phoneNumber').value = '';
+                document.getElementById('adminEmail').value = '';
+                document.getElementById('adminPassword').value = '';
+                
+                showNotification('ออกจากระบบเรียบร้อยแล้ว', 'success');
+            } catch (error) {
+                console.error('Logout error:', error);
+                showNotification('เกิดข้อผิดพลาดในการออกจากระบบ', 'error');
+            }
+        });
+
+        // Edit student function
+        function editStudent(docId, studentData) {
+            document.getElementById('editStudentDocId').value = docId;
+            document.getElementById('editStudentId').value = studentData.studentId || '';
+            document.getElementById('editGrade').value = studentData.grade || '';
+            document.getElementById('editRoom').value = studentData.room || '';
+            document.getElementById('editPrefix').value = studentData.prefix || 'นาย';
+            document.getElementById('editFirstName').value = studentData.firstName || '';
+            document.getElementById('editLastName').value = studentData.lastName || '';
+            document.getElementById('editNickname').value = studentData.nickname || '';
+            document.getElementById('editPhone').value = studentData.phone || '';
+            
+            document.getElementById('editStudentModal').classList.remove('hidden');
+        }
+
+        // Delete student function
+        function deleteStudent(docId, studentId) {
+            showConfirmation(
+                `คุณต้องการลบข้อมูลนักเรียนรหัส ${studentId} หรือไม่?`,
+                async () => {
+                    showLoading();
+                    try {
+                        await db.collection('students').doc(docId).delete();
+                        hideLoading();
+                        showNotification('ลบข้อมูลนักเรียนเรียบร้อยแล้ว', 'success');
+                        await loadAdminData();
+                    } catch (error) {
+                        console.error('Delete student error:', error);
+                        hideLoading();
+                        showNotification('เกิดข้อผิดพลาดในการลบข้อมูล', 'error');
+                    }
+                }
+            );
+        }
+
+        // Cancel application function
+        function cancelApplication(docId, studentId) {
+            showConfirmation(
+                `คุณต้องการยกเลิกการสมัครของนักเรียนรหัส ${studentId} หรือไม่?`,
+                async () => {
+                    showLoading();
+                    try {
+                        await db.collection('applicants').doc(docId).delete();
+                        hideLoading();
+                        showNotification('ยกเลิกการสมัครเรียบร้อยแล้ว', 'success');
+                        await loadAdminData();
+                    } catch (error) {
+                        console.error('Cancel application error:', error);
+                        hideLoading();
+                        showNotification('เกิดข้อผิดพลาดในการยกเลิกการสมัคร', 'error');
+                    }
+                }
+            );
+        }
+
+        // Show confirmation modal
+        function showConfirmation(message, onConfirm) {
+            document.getElementById('confirmMessage').textContent = message;
+            document.getElementById('confirmModal').classList.remove('hidden');
+            
+            const confirmYes = document.getElementById('confirmYes');
+            const confirmNo = document.getElementById('confirmNo');
+            
+            // Remove existing event listeners
+            const newConfirmYes = confirmYes.cloneNode(true);
+            const newConfirmNo = confirmNo.cloneNode(true);
+            confirmYes.parentNode.replaceChild(newConfirmYes, confirmYes);
+            confirmNo.parentNode.replaceChild(newConfirmNo, confirmNo);
+            
+            // Add new event listeners
+            newConfirmYes.addEventListener('click', () => {
+                document.getElementById('confirmModal').classList.add('hidden');
+                onConfirm();
+            });
+            
+            newConfirmNo.addEventListener('click', () => {
+                document.getElementById('confirmModal').classList.add('hidden');
+            });
+        }
+
+        // Edit student form submission
+        document.getElementById('editStudentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const docId = document.getElementById('editStudentDocId').value;
+            const updatedData = {
+                studentId: document.getElementById('editStudentId').value.trim(),
+                grade: document.getElementById('editGrade').value.trim(),
+                room: document.getElementById('editRoom').value.trim(),
+                prefix: document.getElementById('editPrefix').value,
+                firstName: document.getElementById('editFirstName').value.trim(),
+                lastName: document.getElementById('editLastName').value.trim(),
+                nickname: document.getElementById('editNickname').value.trim(),
+                phone: document.getElementById('editPhone').value.trim()
+            };
+
+            if (!updatedData.studentId || !updatedData.firstName || !updatedData.lastName) {
+                showNotification('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน', 'error');
+                return;
+            }
+
+            showLoading();
+            try {
+                await db.collection('students').doc(docId).update(updatedData);
+                
+                // Update applicant data if exists
+                const applicantQuery = await db.collection('applicants')
+                    .where('studentId', '==', updatedData.studentId)
+                    .get();
+                
+                if (!applicantQuery.empty) {
+                    const applicantDoc = applicantQuery.docs[0];
+                    await db.collection('applicants').doc(applicantDoc.id).update(updatedData);
+                }
+
+                hideLoading();
+                document.getElementById('editStudentModal').classList.add('hidden');
+                showNotification('แก้ไขข้อมูลเรียบร้อยแล้ว', 'success');
+                await loadAdminData();
+            } catch (error) {
+                console.error('Update student error:', error);
+                hideLoading();
+                showNotification('เกิดข้อผิดพลาดในการแก้ไขข้อมูล', 'error');
+            }
+        });
+
+        // Cancel edit button
+        document.getElementById('cancelEditBtn').addEventListener('click', () => {
+            document.getElementById('editStudentModal').classList.add('hidden');
+        });
+
+        // Cancel my application function (for students)
+        function cancelMyApplication(docId) {
+            showConfirmation(
+                'คุณต้องการยกเลิกการสมัครของคุณหรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้',
+                async () => {
+                    showLoading();
+                    try {
+                        await db.collection('applicants').doc(docId).delete();
+                        hideLoading();
+                        showNotification('ยกเลิกการสมัครเรียบร้อยแล้ว', 'success');
+                        checkRegistrationStatus();
+                    } catch (error) {
+                        console.error('Cancel my application error:', error);
+                        hideLoading();
+                        showNotification('เกิดข้อผิดพลาดในการยกเลิกการสมัคร', 'error');
+                    }
+                }
+            );
+        }
+
+        // Filter event listeners
+        document.getElementById('searchStudent').addEventListener('input', displayFilteredStudents);
+        document.getElementById('filterGrade').addEventListener('change', displayFilteredStudents);
+        document.getElementById('filterStatus').addEventListener('change', displayFilteredStudents);
+
+        // Clear filters
+        document.getElementById('clearFiltersBtn').addEventListener('click', () => {
+            document.getElementById('searchStudent').value = '';
+            document.getElementById('filterGrade').value = '';
+            document.getElementById('filterStatus').value = '';
+            displayFilteredStudents();
+        });
+
+        // Add student button
+        document.getElementById('addStudentBtn').addEventListener('click', () => {
+            document.getElementById('addStudentModal').classList.remove('hidden');
+        });
+
+        // Cancel add student
+        document.getElementById('cancelAddBtn').addEventListener('click', () => {
+            document.getElementById('addStudentModal').classList.add('hidden');
+            document.getElementById('addStudentForm').reset();
+        });
+
+        // Add student form submission
+        document.getElementById('addStudentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const studentData = {
+                studentId: document.getElementById('addStudentId').value.trim(),
+                grade: document.getElementById('addGrade').value.trim(),
+                room: document.getElementById('addRoom').value.trim(),
+                prefix: document.getElementById('addPrefix').value,
+                firstName: document.getElementById('addFirstName').value.trim(),
+                lastName: document.getElementById('addLastName').value.trim(),
+                nickname: document.getElementById('addNickname').value.trim(),
+                phone: document.getElementById('addPhone').value.trim(),
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            // Check if student ID already exists
+            const existingStudent = await db.collection('students')
+                .where('studentId', '==', studentData.studentId)
+                .get();
+
+            if (!existingStudent.empty) {
+                showNotification('รหัสนักเรียนนี้มีอยู่ในระบบแล้ว', 'error');
+                return;
+            }
+
+            showLoading();
+            try {
+                await db.collection('students').add(studentData);
+                hideLoading();
+                document.getElementById('addStudentModal').classList.add('hidden');
+                document.getElementById('addStudentForm').reset();
+                showNotification('เพิ่มนักเรียนเรียบร้อยแล้ว', 'success');
+                await loadAdminData();
+            } catch (error) {
+                console.error('Add student error:', error);
+                hideLoading();
+                showNotification('เกิดข้อผิดพลาดในการเพิ่มนักเรียน', 'error');
+            }
+        });
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check for auto-schedule
+            setInterval(async () => {
+                try {
+                    const settingsDoc = await db.collection('settings').doc('registration').get();
+                    const settings = settingsDoc.data();
+                    
+                    if (settings?.autoSchedule) {
+                        const now = new Date();
+                        const openTime = settings.openDateTime?.toDate();
+                        const closeTime = settings.closeDateTime?.toDate();
+                        
+                        if (openTime && closeTime) {
+                            const shouldBeOpen = now >= openTime && now <= closeTime;
+                            
+                            if (settings.isOpen !== shouldBeOpen) {
+                                await db.collection('settings').doc('registration').update({
+                                    isOpen: shouldBeOpen
+                                });
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Auto-schedule error:', error);
+                }
+            }, 60000); // Check every minute
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'992e84c6570a7325',t:'MTc2MTE5NDAzMS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
