@@ -1263,7 +1263,7 @@
                 async () => {
                     showLoading();
                     try {
-                        await db.collection('students').doc(docId).delete();
+                        await db.collection('applications').doc(docId).delete();
                         hideLoading();
                         showNotification('ลบข้อมูลนักเรียนเรียบร้อยแล้ว', 'success');
                         await loadAdminData();
