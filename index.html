@@ -556,6 +556,120 @@
         let currentUser = null;
         let isAdmin = false;
         let registrationOpen = true;
+        // Global variables to store all student data and manage listeners
+let allStudentsData = [];
+let unsubscribeApplicants = null;
+let unsubscribeAllStudents = null;
+
+// --- Helper Functions to Render Tables (ต้องเพิ่มฟังก์ชันเหล่านี้) ---
+
+/**
+ * ฟังก์ชันสำหรับแสดงผลข้อมูลผู้สมัครในตาราง
+ * @param {Array} applicants - ข้อมูลผู้สมัครที่ดึงมาจาก Firestore
+ */
+function renderApplicantsTable(applicants) {
+    const tableBody = document.getElementById('applicantsTable');
+    tableBody.innerHTML = ''; // ล้างข้อมูลเดิม
+
+    applicants.forEach(applicant => {
+        const row = tableBody.insertRow();
+        row.className = 'border-b hover:bg-gray-100 transition-colors';
+        
+        // แปลง Firebase Timestamp เป็น string ภาษาไทย
+        const timeString = applicant.timestamp ? applicant.timestamp.toDate().toLocaleString('th-TH') : '-';
+
+        // สร้าง Cell และใส่ข้อมูล (รหัสนักเรียน, ชื่อ-นามสกุล, ชั้น, เบอร์โทร, เวลาสมัคร, จัดการ)
+        row.insertCell().textContent = applicant.studentId || '-';
+        row.insertCell().textContent = `${applicant.prefix || ''} ${applicant.firstName || ''} ${applicant.lastName || ''}`;
+        row.insertCell().textContent = `${applicant.grade || ''}/${applicant.room || ''}`;
+        row.insertCell().textContent = applicant.phone || '-';
+        row.insertCell().textContent = timeString;
+        
+        const actionCell = row.insertCell();
+        // ปุ่มลบ ต้องมีฟังก์ชัน confirmDeleteApplicant() รองรับ
+        actionCell.innerHTML = `<button onclick="confirmDeleteApplicant('${applicant.docId}', '${applicant.firstName}')" class="text-red-500 hover:text-red-700 font-medium">ลบ</button>`;
+    });
+}
+
+/**
+ * ฟังก์ชันสำหรับแสดงผลข้อมูลนักเรียนทั้งหมดในตาราง
+ * @param {Array} students - ข้อมูลนักเรียนทั้งหมดที่ดึงมาจาก Firestore
+ */
+function renderAllStudentsTable(students) {
+    // ในโค้ดจริง ฟังก์ชันนี้ควรมีการนำตัวกรอง (searchStudent, filterGrade, filterStatus) มาใช้ด้วย 
+    // แต่เพื่อความเรียบง่าย จะทำการแสดงผลทั้งหมดก่อน
+    const tableBody = document.getElementById('allStudentsTable');
+    tableBody.innerHTML = ''; // ล้างข้อมูลเดิม
+
+    students.forEach(student => {
+        const row = tableBody.insertRow();
+        row.className = 'border-b hover:bg-gray-100 transition-colors';
+        
+        // ตรวจสอบสถานะการสมัคร (สมมติว่ามีฟิลด์ 'applied' ใน collection 'applications')
+        const applied = allStudentsData.some(applicant => applicant.studentId === student.studentId && applicant.hasApplied); // ใช้ allStudentsData ที่มีสถานะการสมัครจริง
+        const statusText = student.applied ? 'สมัครแล้ว' : 'ยังไม่สมัคร';
+        const statusClass = student.applied ? 'status-success' : 'status-info';
+        
+        // สร้าง Cell และใส่ข้อมูล (รหัสนักเรียน, ชื่อ-นามสกุล, ชั้น, เบอร์โทร, สถานะ, จัดการ)
+        row.insertCell().textContent = student.studentId || '-';
+        row.insertCell().textContent = `${student.prefix || ''} ${student.firstName || ''} ${student.lastName || ''}`;
+        row.insertCell().textContent = `${student.grade || ''}/${student.room || ''}`;
+        row.insertCell().textContent = student.phone || '-';
+        
+        const statusCell = row.insertCell();
+        statusCell.innerHTML = `<span class="${statusClass} text-xs font-semibold px-3 py-1 rounded-full">${statusText}</span>`;
+
+        const actionCell = row.insertCell();
+        // ปุ่มแก้ไข/ลบ ต้องมีฟังก์ชัน openEditModal() และ confirmDeleteStudent() รองรับ
+        actionCell.innerHTML = `<button onclick="openEditModal('${student.docId}')" class="text-blue-500 hover:text-blue-700 font-medium mr-3">แก้ไข</button>
+                                <button onclick="confirmDeleteStudent('${student.docId}', '${student.firstName}')" class="text-red-500 hover:text-red-700 font-medium">ลบ</button>`;
+    });
+}
+
+/**
+ * ตั้งค่าการรับฟังข้อมูลแบบเรียลไทม์สำหรับ Admin Dashboard
+ */
+function setupRealtimeAdminDashboard() {
+    // 1. Real-time Applicants Table (รายชื่อผู้สมัคร)
+    if (unsubscribeApplicants) { unsubscribeApplicants(); } // ยกเลิกการรับฟังเดิม
+    
+    unsubscribeApplicants = db.collection('applicants')
+        .orderBy('timestamp', 'asc') // จัดเรียงตามเวลาสมัคร
+        .onSnapshot(snapshot => {
+            const applicants = [];
+            snapshot.forEach(doc => {
+                applicants.push({ docId: doc.id, ...doc.data() });
+            });
+            renderApplicantsTable(applicants); // เรียกฟังก์ชันแสดงผล
+        }, error => {
+            console.error("Applicants OnSnapshot Error:", error);
+            showNotification('เกิดข้อผิดพลาดในการโหลดรายชื่อผู้สมัครแบบเรียลไทม์', 'error');
+        });
+        
+    // 2. Real-time All Students Table (ข้อมูลนักเรียนทั้งหมด)
+    [span_0](start_span)// สมมติว่าข้อมูลนักเรียนทั้งหมดอยู่ใน collection 'applications'[span_0](end_span)
+    if (unsubscribeAllStudents) { unsubscribeAllStudents(); } // ยกเลิกการรับฟังเดิม
+
+    unsubscribeAllStudents = db.collection('applications')
+        .orderBy('studentId', 'asc') // จัดเรียงตามรหัสนักเรียน
+        .onSnapshot(snapshot => {
+            const students = [];
+            snapshot.forEach(doc => {
+                // ใส่ฟิลด์ applied: doc.data().applied เพื่อให้ฟังก์ชัน renderAllStudentsTable ทำงานได้
+                students.push({ docId: doc.id, ...doc.data(), applied: doc.data().applied || false }); 
+            });
+            allStudentsData = students; // เก็บข้อมูลทั้งหมดไว้สำหรับใช้ในการ Filter และ Search
+            
+            // ในการใช้งานจริง ควรเรียกฟังก์ชันที่ประมวลผลการค้นหา/ตัวกรอง ก่อนเรียก renderAllStudentsTable(students)
+            renderAllStudentsTable(allStudentsData); 
+        }, error => {
+            console.error("All Students OnSnapshot Error:", error);
+            showNotification('เกิดข้อผิดพลาดในการโหลดข้อมูลนักเรียนทั้งหมดแบบเรียลไทม์', 'error');
+        });
+}
+
+// ต้องมั่นใจว่ามีการกำหนดฟังก์ชัน openEditModal(), confirmDeleteApplicant(), confirmDeleteStudent() ในโค้ดของคุณด้วย
+
 
         // DOM Elements
         const loginPage = document.getElementById('loginPage');
@@ -879,6 +993,8 @@
             studentDashboard.classList.add('hidden');
             adminDashboard.classList.remove('hidden');
             document.getElementById('logoutBtn').classList.remove('hidden');
+            // เรียกใช้ฟังก์ชัน Real-time Listener เพื่อเริ่มการอัปเดตข้อมูลอัตโนมัติ
+            setupRealtimeAdminDashboard(); 
 
             await loadAdminData();
         }
@@ -1222,6 +1338,10 @@
                 
                 currentUser = null;
                 isAdmin = false;
+                
+               // เพิ่มโค้ดนี้เพื่อยกเลิกการรับฟังข้อมูลแบบ Real-time
+                if (unsubscribeApplicants) { unsubscribeApplicants(); }
+                if (unsubscribeAllStudents) { unsubscribeAllStudents(); }
                 
                 loginPage.classList.remove('hidden');
                 studentDashboard.classList.add('hidden');
