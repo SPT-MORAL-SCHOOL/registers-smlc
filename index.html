@@ -1433,7 +1433,7 @@
             };
 
             // Check if student ID already exists
-            const existingStudent = await db.collection('students')
+            const existingStudent = await db.collection('applications')
                 .where('studentId', '==', studentData.studentId)
                 .get();
 
@@ -1444,7 +1444,7 @@
 
             showLoading();
             try {
-                await db.collection('students').add(studentData);
+                await db.collection('applications').add(studentData);
                 hideLoading();
                 document.getElementById('addStudentModal').classList.add('hidden');
                 document.getElementById('addStudentForm').reset();
