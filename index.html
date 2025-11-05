@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบรับสมัครคณะกรรมการนักเรียนขับเคลื่อนโรงเรียนคุณธรรม • โรงเรียนสตรีพัทลุง</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            box-sizing: border-box;
+            font-family: 'Prompt', 'Kanit', sans-serif;
+            background: #ffffff;
+            min-height: 100%;
+            font-weight: 400;
+        }
+        html, body {
+            height: 100%;
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            border-radius: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            transition: opacity 0.3s;
+        }
+        .notification {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.5s, transform 0.5s;
+            transform: translateY(-20px);
+        }
+        .notification.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div>
+    </div>
+
+    <div id="notificationContainer"></div>
+
+    <div class="flex items-center justify-center min-h-screen">
+        <div id="appContainer" class="p-4 md:p-8 w-full max-w-4xl">
+            <div id="loginPage" class="glass p-6 md:p-10 shadow-lg hidden">
+                <h1 class="text-3xl font-bold text-center mb-6 text-indigo-700">เข้าสู่ระบบ</h1>
+                <p class="text-center text-gray-600 mb-8">ใช้บัญชี Google ของโรงเรียนสตรีพัทลุง</p>
+                <button id="signInBtn" class="w-full py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition duration-300 flex items-center justify-center">
+                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20"><path d="M10 0C4.48 0 0 4.48 0 10s4.48 10 10 10 10-4.48 10-10S15.52 0 10 0zm0 17c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/><path d="M12.9 8.6c.1.3.2.7.2 1.1s-.1.8-.2 1.1c-.2.5-.5.9-.9 1.3-.4.3-.8.6-1.3.8-.5.1-1 .2-1.5.2s-1.1-.1-1.6-.3c-.5-.2-1-.5-1.3-.9-.4-.4-.6-.8-.8-1.3-.1-.5-.2-1-.2-1.5s.1-1.1.3-1.6c.2-.5.5-.9.9-1.3.4-.3.8-.6 1.3-.8.5-.1 1-.2 1.5-.2s1.1.1 1.6.3c.5.2 1 .5 1.3.9.4.4.6.8.8 1.3z" fill="#4285F4"/><path d="M13 10c0-1.1-.9-2-2-2s-2 .9-2 2 .9 2 2 2 2-.9 2-2z"/></svg>
+                    เข้าสู่ระบบด้วย Google
+                </button>
+            </div>
+
+            <div id="appPage" class="glass p-6 md:p-10 shadow-lg hidden">
+                <div class="flex justify-between items-center mb-6 border-b pb-4">
+                    <h1 class="text-2xl font-bold text-indigo-700">ระบบรับสมัครคณะกรรมการนักเรียน</h1>
+                    <div class="flex items-center space-x-4">
+                        <span id="userName" class="text-gray-700 font-medium"></span>
+                        <button id="signOutBtn" class="text-sm text-red-500 hover:text-red-700 transition duration-300">ออกจากระบบ</button>
+                    </div>
+                </div>
+
+                <div class="mb-8 p-4 rounded-lg bg-gray-50 border border-gray-200">
+                    <h2 class="text-xl font-semibold mb-2 text-gray-800">สถานะการรับสมัคร</h2>
+                    <p id="registrationStatus" class="text-lg font-bold text-center py-4 rounded-md">
+                        <span class="text-yellow-600">กำลังตรวจสอบสถานะ...</span>
+                    </p>
+                    <div id="countdownTimer" class="text-center mt-3 hidden">
+                        <p class="text-sm text-gray-500 mb-1">จะเปิด/ปิดใน:</p>
+                        <p class="text-2xl font-mono text-indigo-600" id="countdownDisplay">00:00:00</p>
+                    </div>
+                </div>
+
+                <div id="adminSettings" class="bg-indigo-100 p-6 rounded-lg shadow-md mb-8 hidden">
+                    <h2 class="text-xl font-bold text-indigo-700 mb-4">⚙️ ตั้งค่าผู้ดูแลระบบ</h2>
+                    
+                    <div class="flex flex-wrap -mx-2 mb-4">
+                        <div class="w-full md:w-1/2 px-2 mb-4 md:mb-0">
+                            <label for="openDateTime" class="block text-sm font-medium text-gray-700">เวลาเปิดรับสมัคร (GMT+7)</label>
+                            <input type="datetime-local" id="openDateTime" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" step="1">
+                        </div>
+                        <div class="w-full md:w-1/2 px-2">
+                            <label for="closeDateTime" class="block text-sm font-medium text-gray-700">เวลาปิดรับสมัคร (GMT+7)</label>
+                            <input type="datetime-local" id="closeDateTime" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" step="1">
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between mb-4 p-3 bg-white rounded-md shadow-sm">
+                        <label for="autoSchedule" class="text-sm font-medium text-gray-700 flex items-center">
+                            <input type="checkbox" id="autoSchedule" class="h-4 w-4 text-indigo-600 border-gray-300 rounded mr-2">
+                            ตั้งเวลาเปิด/ปิดอัตโนมัติ
+                        </label>
+                        <span id="autoScheduleStatus" class="text-sm font-medium text-gray-500"></span>
+                    </div>
+
+                    <div class="flex items-center justify-between mb-4 p-3 bg-white rounded-md shadow-sm">
+                        <span class="text-sm font-medium text-gray-700">สถานะปัจจุบัน (เปิด/ปิด)</span>
+                        <button id="toggleRegistrationBtn" class="py-2 px-4 rounded-md font-semibold text-white transition duration-300">
+                            สลับสถานะ
+                        </button>
+                    </div>
+
+                    <button id="saveSettingsBtn" class="w-full py-2 px-4 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition duration-300">
+                        บันทึกการตั้งค่า
+                    </button>
+                </div>
+
+                <button id="registerBtn" class="w-full py-4 bg-indigo-600 text-white text-xl font-bold rounded-lg shadow-lg hover:bg-indigo-700 transition duration-300 hidden disabled:opacity-50" disabled>
+                    เข้าสู่หน้าสมัคร
+                </button>
+                
+                <div id="registrationListContainer" class="mt-8 hidden">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">📊 รายชื่อผู้สมัคร</h2>
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ลำดับ</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ชื่อ-นามสกุล</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ตำแหน่ง</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">เวลาสมัคร</th>
+                            </tr>
+                        </thead>
+                        <tbody id="registrationList" class="bg-white divide-y divide-gray-200">
+                            </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Your Firebase configuration
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const googleProvider = new firebase.auth.GoogleAuthProvider();
+        googleProvider.setCustomParameters({
+            prompt: 'select_account'
+        });
+
+        // Global variables
+        let currentUser = null;
+        let isAdmin = false;
+        let registrationOpen = true;
+
+        // =========================================================================
+        // ✅ โค้ดที่แก้ไข: ส่วนสำหรับซิงค์เวลาเซิร์ฟเวอร์ (Server Time Synchronization)
+        // =========================================================================
+        let serverTimeOffset = 0; // ผลต่างเวลา (Server time - Client time) เป็นมิลลิวินาที
+
+        /**
+         * คืนค่าเวลาปัจจุบันที่ซิงค์กับ Server Time แล้ว
+         * @returns {Date} Object วันที่และเวลาปัจจุบันที่ถูกต้องตาม Server
+         */
+        function getServerNow() {
+            // คืนค่าเวลาปัจจุบันของไคลเอนต์ที่ถูกปรับด้วย Server Time Offset
+            // นี่คือ Best Practice สำหรับการใช้เวลาที่แม่นยำในแอปพลิเคชัน Firebase
+            return new Date(new Date().getTime() + serverTimeOffset);
+        }
+
+        /**
+         * ดึงและคำนวณ Server Time Offset โดยใช้ Firebase Firestore Server Timestamp
+         */
+        async function fetchServerTimeOffset() {
+            showLoading();
+            try {
+                // บันทึกเวลาเริ่มต้นของไคลเอนต์ก่อนการส่งคำขอ
+                const startTime = new Date().getTime();
+                const tempDocRef = db.collection('settings').doc('time_sync');
+
+                // 1. เขียน Server Timestamp ลงใน Firestore
+                await tempDocRef.set({
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                // 2. อ่านค่ากลับมาทันทีเพื่อรับ Server Timestamp
+                const doc = await tempDocRef.get();
+                // Firestore Timestamp ถูกแปลงเป็น Date object และดึงค่า epoch time
+                const serverTimestamp = doc.data().timestamp.toDate().getTime();
+                
+                // 3. ลบ document ชั่วคราว (ทำความสะอาด)
+                await tempDocRef.delete(); 
+                
+                // บันทึกเวลาสิ้นสุด
+                const endTime = new Date().getTime();
+                // ใช้เวลาเฉลี่ยของไคลเอนต์เพื่อลดผลกระทบจาก Latency
+                const clientTime = Math.floor((startTime + endTime) / 2); 
+                
+                // คำนวณส่วนต่าง (Server Time - Client Time)
+                serverTimeOffset = serverTimestamp - clientTime;
+                console.log(`Server time synchronized. Offset: ${serverTimeOffset}ms`);
+                showNotification('ซิงค์เวลาเซิร์ฟเวอร์เรียบร้อยแล้ว', 'info');
+
+            } catch (error) {
+                console.error('Error fetching server time offset, falling back to client time (Offset = 0):', error);
+                serverTimeOffset = 0; // หากผิดพลาด ให้ใช้เวลาไคลเอนต์ (Offset เป็น 0)
+                showNotification('⚠️ ไม่สามารถซิงค์เวลาเซิร์ฟเวอร์ได้ ใช้เวลาเครื่องแทน', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+        // =========================================================================
+        
+        // DOM Elements
+        const loginPage = document.getElementById('loginPage');
+        const appPage = document.getElementById('appPage');
+        const signInBtn = document.getElementById('signInBtn');
+        const signOutBtn = document.getElementById('signOutBtn');
+        const userName = document.getElementById('userName');
+        const registrationStatus = document.getElementById('registrationStatus');
+        const registerBtn = document.getElementById('registerBtn');
+        const adminSettings = document.getElementById('adminSettings');
+        const openDateTimeInput = document.getElementById('openDateTime');
+        const closeDateTimeInput = document.getElementById('closeDateTime');
+        const autoScheduleCheckbox = document.getElementById('autoSchedule');
+        const autoScheduleStatus = document.getElementById('autoScheduleStatus');
+        const toggleRegistrationBtn = document.getElementById('toggleRegistrationBtn');
+        const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+        const countdownTimer = document.getElementById('countdownTimer');
+        const countdownDisplay = document.getElementById('countdownDisplay');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const notificationContainer = document.getElementById('notificationContainer');
+        const registrationListContainer = document.getElementById('registrationListContainer');
+        const registrationList = document.getElementById('registrationList');
+
+        let countdownInterval = null;
+        let statusCheckInterval = null;
+
+        // Helper Functions
+        function showLoading() {
+            loadingOverlay.classList.remove('hidden');
+        }
+
+        function hideLoading() {
+            loadingOverlay.classList.add('hidden');
+        }
+
+        function showNotification(message, type = 'success') {
+            const el = document.createElement('div');
+            let bgColor = 'bg-green-500';
+            if (type === 'error') bgColor = 'bg-red-500';
+            if (type === 'info') bgColor = 'bg-blue-500';
+
+            el.className = `notification p-4 rounded-lg shadow-xl text-white ${bgColor}`;
+            el.innerHTML = `<span>${message}</span>`;
+            
+            notificationContainer.appendChild(el);
+            setTimeout(() => {
+                el.classList.add('show');
+            }, 10);
+
+            setTimeout(() => {
+                el.classList.remove('show');
+                setTimeout(() => el.remove(), 500);
+            }, 5000);
+        }
+
+        function formatDateForInput(date) {
+            if (!date) return '';
+            const dt = new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().slice(0, 19);
+            return dt;
+        }
+
+        function displayRegistrationList(registrations) {
+            registrationList.innerHTML = '';
+            if (registrations.length === 0) {
+                registrationList.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-gray-500">ยังไม่มีผู้สมัคร</td></tr>`;
+                return;
+            }
+
+            registrations.forEach((doc, index) => {
+                const data = doc.data();
+                const timeString = data.timestamp ? data.timestamp.toDate().toLocaleString('th-TH', { 
+                    timeZone: 'Asia/Bangkok',
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                }) : '-';
+                
+                const row = `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">${index + 1}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${data.name || '-'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${data.position || '-'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${timeString}</td>
+                    </tr>
+                `;
+                registrationList.innerHTML += row;
+            });
+            registrationListContainer.classList.remove('hidden');
+        }
+
+        // =========================================================================
+        // ✅ โค้ดที่แก้ไข: ใช้ getServerNow() ในการนับถอยหลัง
+        // =========================================================================
+        function updateCountdown(targetDate) {
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+            }
+            countdownTimer.classList.remove('hidden');
+
+            countdownInterval = setInterval(() => {
+                // ❌ เปลี่ยนจาก const now = new Date().getTime();
+                const now = getServerNow().getTime(); 
+                const distance = targetDate.getTime() - now;
+
+                if (distance < 0) {
+                    clearInterval(countdownInterval);
+                    countdownDisplay.textContent = '00:00:00';
+                    checkRegistrationStatus(); // ตรวจสอบสถานะทันทีเมื่อนับถอยหลังเสร็จ
+                    return;
+                }
+
+                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+                const formatTime = (t) => t < 10 ? '0' + t : t;
+
+                countdownDisplay.textContent = 
+                    `${formatTime(hours)}:${formatTime(minutes)}:${formatTime(seconds)}`;
+            }, 1000);
+        }
+        // =========================================================================
+
+        // =========================================================================
+        // ✅ โค้ดที่แก้ไข: ใช้ getServerNow() ในการตรวจสอบสถานะ
+        // =========================================================================
+        async function checkRegistrationStatus() {
+            if (statusCheckInterval) {
+                clearInterval(statusCheckInterval);
+            }
+            showLoading();
+            try {
+                const settingsDoc = await db.collection('settings').doc('registration').get();
+                if (!settingsDoc.exists) {
+                    // หากไม่มีการตั้งค่า ให้สร้างค่าเริ่มต้นและลองตรวจสอบใหม่
+                    await db.collection('settings').doc('registration').set({
+                        isOpen: false,
+                        autoSchedule: false,
+                        openDateTime: firebase.firestore.Timestamp.now(),
+                        closeDateTime: firebase.firestore.Timestamp.now()
+                    });
+                    await checkRegistrationStatus();
+                    return;
+                }
+
+                const settings = settingsDoc.data();
+                // ❌ เปลี่ยนจาก const now = new Date();
+                const now = getServerNow(); 
+                
+                let isOpen = settings.isOpen;
+                let autoSchedule = settings.autoSchedule;
+                let targetDate = null;
+                
+                const openTime = settings.openDateTime ? settings.openDateTime.toDate() : null;
+                const closeTime = settings.closeDateTime ? settings.closeDateTime.toDate() : null;
+                
+                // Admin UI Update
+                if (isAdmin) {
+                    openDateTimeInput.value = formatDateForInput(openTime);
+                    closeDateTimeInput.value = formatDateForInput(closeTime);
+                    autoScheduleCheckbox.checked = autoSchedule;
+                    autoScheduleStatus.textContent = autoSchedule ? 'เปิด' : 'ปิด';
+                    adminSettings.classList.remove('hidden');
+                }
+                
+                // Auto Schedule Logic
+                if (autoSchedule && openTime && closeTime) {
+                    if (now >= openTime && now < closeTime) {
+                        isOpen = true; // อยู่ในช่วงเปิด
+                        targetDate = closeTime; // นับถอยหลังสู่เวลาปิด
+                        registrationStatus.innerHTML = '✅ เปิดรับสมัคร';
+                        registrationStatus.className = 'text-lg font-bold text-center py-4 rounded-md bg-green-100 text-green-700';
+                        registerBtn.disabled = false;
+                        registerBtn.classList.remove('hidden');
+                        registerBtn.textContent = 'เข้าสู่หน้าสมัคร';
+                    } else if (now < openTime) {
+                        isOpen = false; // ยังไม่ถึงเวลาเปิด
+                        targetDate = openTime; // นับถอยหลังสู่เวลาเปิด
+                        registrationStatus.innerHTML = '⏳ เตรียมเปิดรับสมัคร';
+                        registrationStatus.className = 'text-lg font-bold text-center py-4 rounded-md bg-yellow-100 text-yellow-700';
+                        registerBtn.disabled = true;
+                        registerBtn.classList.remove('hidden');
+                        registerBtn.textContent = 'ยังไม่เปิดรับสมัคร';
+                    } else { // now >= closeTime
+                        isOpen = false; // เกินเวลาปิดแล้ว
+                        registrationStatus.innerHTML = '🚫 ปิดรับสมัครแล้ว';
+                        registrationStatus.className = 'text-lg font-bold text-center py-4 rounded-md bg-red-100 text-red-700';
+                        registerBtn.disabled = true;
+                        registerBtn.classList.remove('hidden');
+                        registerBtn.textContent = 'ปิดรับสมัครแล้ว';
+                    }
+
+                    // Start/Update Countdown
+                    if (targetDate) {
+                        updateCountdown(targetDate);
+                    } else {
+                        clearInterval(countdownInterval);
+                        countdownTimer.classList.add('hidden');
+                    }
+                    
+                    // Admin: Set up a recurring check for auto-schedule (only if an admin is logged in)
+                    if (isAdmin && !statusCheckInterval) {
+                        statusCheckInterval = setInterval(async () => {
+                            try {
+                                const latestSettings = (await db.collection('settings').doc('registration').get()).data();
+                                const latestOpenTime = latestSettings.openDateTime ? latestSettings.openDateTime.toDate() : null;
+                                const latestCloseTime = latestSettings.closeDateTime ? latestSettings.closeDateTime.toDate() : null;
+                                const nowAuto = getServerNow();
+
+                                let shouldBeOpen = false;
+                                if (latestOpenTime && latestCloseTime && nowAuto >= latestOpenTime && nowAuto < latestCloseTime) {
+                                    shouldBeOpen = true;
+                                }
+
+                                if (latestSettings.isOpen !== shouldBeOpen) {
+                                    await db.collection('settings').doc('registration').update({
+                                        isOpen: shouldBeOpen
+                                    });
+                                    // Re-run status check to update UI immediately
+                                    checkRegistrationStatus(); 
+                                }
+                            } catch (error) {
+                                console.error('Auto-schedule background check error:', error);
+                            }
+                        }, 60000); // Check every minute
+                    }
+
+                } else {
+                    // Manual Mode
+                    clearInterval(countdownInterval);
+                    countdownTimer.classList.add('hidden');
+                    
+                    if (isOpen) {
+                        registrationStatus.innerHTML = '✅ เปิดรับสมัคร (ตั้งค่าด้วยตนเอง)';
+                        registrationStatus.className = 'text-lg font-bold text-center py-4 rounded-md bg-green-100 text-green-700';
+                        registerBtn.disabled = false;
+                        registerBtn.classList.remove('hidden');
+                        registerBtn.textContent = 'เข้าสู่หน้าสมัคร';
+                    } else {
+                        registrationStatus.innerHTML = '🚫 ปิดรับสมัครแล้ว (ตั้งค่าด้วยตนเอง)';
+                        registrationStatus.className = 'text-lg font-bold text-center py-4 rounded-md bg-red-100 text-red-700';
+                        registerBtn.disabled = true;
+                        registerBtn.classList.remove('hidden');
+                        registerBtn.textContent = 'ปิดรับสมัครแล้ว';
+                    }
+                }
+                
+                // Update Global Status
+                registrationOpen = isOpen;
+                
+                // Admin UI for manual toggle
+                if (isAdmin) {
+                    toggleRegistrationBtn.textContent = isOpen ? 'ปิดรับสมัคร' : 'เปิดรับสมัคร';
+                    toggleRegistrationBtn.classList.remove('bg-green-600', 'bg-red-600');
+                    toggleRegistrationBtn.classList.add(isOpen ? 'bg-red-600' : 'bg-green-600');
+                }
+
+            } catch (error) {
+                console.error('Error checking registration status:', error);
+                registrationStatus.innerHTML = '❌ เกิดข้อผิดพลาดในการตรวจสอบสถานะ';
+                registrationStatus.className = 'text-lg font-bold text-center py-4 rounded-md bg-gray-100 text-gray-700';
+            } finally {
+                hideLoading();
+            }
+        }
+        // =========================================================================
+
+        // Event Listeners
+        signInBtn.addEventListener('click', () => {
+            showLoading();
+            auth.signInWithPopup(googleProvider)
+                .catch(error => {
+                    console.error('Sign In Error:', error);
+                    showNotification('เกิดข้อผิดพลาดในการเข้าสู่ระบบ: ' + error.message, 'error');
+                    hideLoading();
+                });
+        });
+
+        signOutBtn.addEventListener('click', () => {
+            showLoading();
+            auth.signOut()
+                .then(() => showNotification('ออกจากระบบเรียบร้อยแล้ว', 'info'))
+                .catch(error => {
+                    console.error('Sign Out Error:', error);
+                    showNotification('เกิดข้อผิดพลาดในการออกจากระบบ', 'error');
+                });
+        });
+
+        toggleRegistrationBtn.addEventListener('click', async () => {
+            if (!isAdmin) return;
+            showLoading();
+            try {
+                const docRef = db.collection('settings').doc('registration');
+                const doc = await docRef.get();
+                const currentStatus = doc.data().isOpen;
+                await docRef.update({
+                    isOpen: !currentStatus,
+                    autoSchedule: false // Manual override turns off auto-schedule
+                });
+                await checkRegistrationStatus();
+                showNotification(`สลับสถานะเป็น: ${!currentStatus ? 'เปิด' : 'ปิด'}`, 'success');
+            } catch (error) {
+                console.error('Toggle Error:', error);
+                showNotification('เกิดข้อผิดพลาดในการสลับสถานะ', 'error');
+            } finally {
+                hideLoading();
+            }
+        });
+
+        saveSettingsBtn.addEventListener('click', async () => {
+            if (!isAdmin) return;
+            showLoading();
+            try {
+                const openDate = openDateTimeInput.value ? new Date(openDateTimeInput.value) : null;
+                const closeDate = closeDateTimeInput.value ? new Date(closeDateTimeInput.value) : null;
+                const autoSchedule = autoScheduleCheckbox.checked;
+
+                const updateData = {
+                    autoSchedule: autoSchedule
+                };
+
+                if (openDate && !isNaN(openDate)) {
+                    updateData.openDateTime = firebase.firestore.Timestamp.fromDate(openDate);
+                }
+                if (closeDate && !isNaN(closeDate)) {
+                    updateData.closeDateTime = firebase.firestore.Timestamp.fromDate(closeDate);
+                }
+
+                await db.collection('settings').doc('registration').update(updateData);
+                await checkRegistrationStatus();
+                showNotification('บันทึกการตั้งค่าเรียบร้อยแล้ว', 'success');
+            } catch (error) {
+                console.error('Save Settings Error:', error);
+                showNotification('เกิดข้อผิดพลาดในการบันทึกการตั้งค่า', 'error');
+            } finally {
+                hideLoading();
+            }
+        });
+
+        registerBtn.addEventListener('click', () => {
+            if (registrationOpen && currentUser) {
+                // TODO: Redirect to registration form page or show modal
+                showNotification('ดำเนินการไปยังหน้าสมัคร...', 'info');
+                // Placeholder: window.location.href = 'registration_form.html';
+            } else {
+                showNotification('การรับสมัครยังไม่เปิด', 'error');
+            }
+        });
+        
+        // Firestore Listener for Settings and Registrations
+        db.collection('settings').doc('registration').onSnapshot(doc => {
+            // เมื่อมีการเปลี่ยนแปลงการตั้งค่า ให้ทำการตรวจสอบสถานะใหม่ทันที
+            if (doc.exists) {
+                checkRegistrationStatus();
+            }
+        });
+
+        // Listen for registration list updates (Admin only)
+        db.collection('registrations').onSnapshot(snapshot => {
+            if (isAdmin) {
+                const registrations = [];
+                snapshot.forEach(doc => {
+                    registrations.push(doc);
+                });
+                displayRegistrationList(registrations);
+            }
+        });
+
+        // Auth state observer
+        auth.onAuthStateChanged(async (user) => {
+            // =========================================================================
+            // ✅ โค้ดที่แก้ไข: ดึง Server Time Offset ทันทีเมื่อสถานะการเข้าสู่ระบบเปลี่ยน
+            // =========================================================================
+            await fetchServerTimeOffset(); 
+            // =========================================================================
+
+            if (user) {
+                currentUser = user;
+                userName.textContent = user.displayName;
+                loginPage.classList.add('hidden');
+                appPage.classList.remove('hidden');
+
+                // Check if user is an admin
+                db.collection('admins').doc(user.uid).get()
+                    .then(doc => {
+                        isAdmin = doc.exists;
+                        if (isAdmin) {
+                            adminSettings.classList.remove('hidden');
+                            registrationListContainer.classList.remove('hidden');
+                        } else {
+                            adminSettings.classList.add('hidden');
+                            registrationListContainer.classList.add('hidden');
+                        }
+                        checkRegistrationStatus(); // Check status after determining admin role
+                    })
+                    .catch(error => {
+                        console.error('Error checking admin role:', error);
+                        checkRegistrationStatus();
+                    });
+            } else {
+                currentUser = null;
+                isAdmin = false;
+                loginPage.classList.remove('hidden');
+                appPage.classList.add('hidden');
+                adminSettings.classList.add('hidden');
+                registrationListContainer.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
