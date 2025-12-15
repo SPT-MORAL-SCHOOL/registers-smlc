@@ -73,7 +73,7 @@
                                 <label class="block text-gray-700 text-sm font-bold mb-2 pl-1">เลขประจำตัวนักเรียน</label>
                                 <div class="relative">
                                     <i class="fas fa-user absolute left-4 top-3.5 text-gray-400"></i>
-                                    <input type="text" id="studentId" class="w-full pl-10 pr-4 py-3 rounded-xl bg-white input-frame" placeholder="ระบุเลขประจำตัว 5 หลัก">
+                                    <input type="text" id="studentId" class="w-full pl-10 pr-4 py-3 rounded-xl bg-white input-frame" placeholder="ระบุเลขประจำตัวนักเรียน 5 หลัก">
                                 </div>
                             </div>
                             <div>
@@ -99,7 +99,7 @@
                                 <input type="password" id="adminPassword" class="w-full pl-10 pr-4 py-3 rounded-xl bg-white input-frame" placeholder="รหัสผ่าน">
                             </div>
                             <button id="adminLoginBtn" class="w-full bg-gray-800 hover:bg-gray-900 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg transition-all">
-                                เข้าสู่ระบบ Admin
+                                เข้าสู่ระบบผู้ดูแล
                             </button>
                         </div>
 
@@ -523,7 +523,7 @@
             document.getElementById('logoutBtn').classList.remove('hidden');
             
             document.getElementById('studentInfo').innerHTML = `
-                <div><span class="font-bold">รหัส:</span> ${currentUser.studentId}</div>
+                <div><span class="font-bold">เลขประจำตัวนักเรียน:</span> ${currentUser.studentId}</div>
                 <div><span class="font-bold">ชื่อ:</span> ${currentUser.prefix}${currentUser.firstName} ${currentUser.lastName}</div>
                 <div><span class="font-bold">ชั้น:</span> ม.${cleanGrade(currentUser.grade)}/${currentUser.room}</div>
                 <div><span class="font-bold">เบอร์โทร:</span> ${currentUser.phone}</div>
