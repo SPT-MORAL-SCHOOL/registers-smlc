@@ -23,20 +23,17 @@
             border: 1px solid rgba(255, 255, 255, 0.6);
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
         }
-        /* Custom Input Styling for "Frame" look */
         .input-frame {
-            border: 2px solid #cbd5e1; /* Gray-300 equivalent - เข้มขึ้นเพื่อให้เห็นกรอบชัด */
+            border: 2px solid #cbd5e1;
             transition: all 0.3s ease;
         }
         .input-frame:focus {
-            border-color: #6366f1; /* Indigo-500 */
+            border-color: #6366f1;
             box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
             outline: none;
         }
         .fade-in { animation: fadeIn 0.5s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        
-        /* Scrollbar */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
@@ -137,7 +134,6 @@
                 </div>
 
                 <div id="adminDashboard" class="hidden fade-in space-y-6">
-                    
                     <div class="glass rounded-2xl p-6 shadow-lg">
                         <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
                             <i class="fas fa-sliders-h mr-3 text-indigo-600"></i>การตั้งค่าระบบ
@@ -194,8 +190,8 @@
                                     </div>
                                 </div>
                                 <div class="flex space-x-2">
-                                    <button id="setScheduleBtn" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg text-sm">ตั้งเวลาอัตโนมัติ</button>
-                                    <button id="clearScheduleBtn" class="px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 rounded-lg"><i class="fas fa-trash"></i></button>
+                                    <button id="setScheduleBtn" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg text-sm transition-colors">ตั้งเวลาอัตโนมัติ</button>
+                                    <button id="clearScheduleBtn" class="px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 rounded-lg transition-colors"><i class="fas fa-trash"></i></button>
                                 </div>
                                 <div class="grid grid-cols-3 gap-2 pt-2 border-t border-gray-100">
                                     <button id="csvImportBtn" class="bg-blue-50 text-blue-600 hover:bg-blue-100 py-2 rounded-lg text-xs font-bold">Import CSV</button>
@@ -276,6 +272,7 @@
                 </div>
             </div>
         </main>
+        
         <footer class="glass border-t border-gray-200 p-4 mt-8">
             <div class="grid grid-cols-1 gap-y-2 text-sm w-fit mx-auto">
                 <div class="flex items-center space-x-2">
@@ -427,18 +424,20 @@
         const db = firebase.firestore();
 
         // Variables
-        let currentUser = null, isAdmin = false, countdownInterval = null;
+        let currentUser = null, isAdmin = false;
+        let settingsListener = null, applicantListener = null, uiUpdateInterval = null;
+        let globalSettings = null, globalApplicant = null;
+        
         let allStudentsData = [], applicantIds = new Set(), adminListeners = [];
-
-        // Pagination Variables
         let currentPage = 1;
         const itemsPerPage = 50;
+        
+        // UI State Tracking
+        let currentUIState = null;
 
         // UI Helpers
         const showLoading = () => document.getElementById('loadingOverlay').classList.remove('hidden');
         const hideLoading = () => document.getElementById('loadingOverlay').classList.add('hidden');
-        
-        // ฟังก์ชันล้างค่าระดับชั้น (เอา 'ม.' ออก) เพื่อให้แสดงผลถูกต้องเสมอ
         const cleanGrade = (g) => g ? g.toString().replace('ม.', '') : '';
 
         const showNotification = (msg, type='info') => {
@@ -497,9 +496,14 @@
 
         document.getElementById('logoutBtn').addEventListener('click', () => {
             auth.signOut();
+            if (settingsListener) settingsListener();
+            if (applicantListener) applicantListener();
+            if (uiUpdateInterval) clearInterval(uiUpdateInterval);
+            
             currentUser = null; isAdmin = false;
             adminListeners.forEach(u => u()); adminListeners = [];
-            if(countdownInterval) clearInterval(countdownInterval);
+            currentUIState = null;
+            
             document.getElementById('loginPage').classList.remove('hidden');
             document.getElementById('studentDashboard').classList.add('hidden');
             document.getElementById('adminDashboard').classList.add('hidden');
@@ -511,7 +515,8 @@
             showNotification('ออกจากระบบเรียบร้อยแล้ว', 'success');
         });
 
-        // Student Logic
+        // ================= STUDENT LOGIC =================
+
         function initStudentDashboard() {
             document.getElementById('loginPage').classList.add('hidden');
             document.getElementById('studentDashboard').classList.remove('hidden');
@@ -523,108 +528,160 @@
                 <div><span class="font-bold">ชั้น:</span> ม.${cleanGrade(currentUser.grade)}/${currentUser.room}</div>
                 <div><span class="font-bold">เบอร์โทร:</span> ${currentUser.phone}</div>
             `;
-            checkRegistrationStatus();
+            
+            currentUIState = null; 
+
+            if (settingsListener) settingsListener();
+            settingsListener = db.collection('settings').doc('registration').onSnapshot(doc => {
+                globalSettings = doc.data() || { isOpen: true, allowedGrades: [] };
+                updateStudentUI();
+            });
+
+            if (applicantListener) applicantListener();
+            applicantListener = db.collection('applicants')
+                .where('studentId', '==', currentUser.studentId)
+                .onSnapshot(snap => {
+                    if (!snap.empty) {
+                        globalApplicant = { ...snap.docs[0].data(), docId: snap.docs[0].id };
+                    } else {
+                        globalApplicant = null;
+                    }
+                    updateStudentUI();
+                });
+
+            if (uiUpdateInterval) clearInterval(uiUpdateInterval);
+            uiUpdateInterval = setInterval(updateStudentUI, 1000);
         }
 
-        async function checkRegistrationStatus() {
-            if(!currentUser) return;
+        function updateStudentUI() {
+            if (!currentUser || !globalSettings) return;
+
             const statusDiv = document.getElementById('registrationStatus');
             const regBtn = document.getElementById('registerBtn');
             const timerDiv = document.getElementById('countdownTimer');
-            
-            const myApp = await db.collection('applicants').where('studentId', '==', currentUser.studentId).get();
-            const settingsDoc = await db.collection('settings').doc('registration').get();
-            const settings = settingsDoc.data() || { isOpen: true, allowedGrades: [] };
             const now = new Date();
-            let isClosed = !settings.isOpen || (settings.closeDateTime && now > settings.closeDateTime.toDate());
+            
+            let newState = '';
+            let targetTime = null;
+            let isOpening = false; 
 
-            if(!myApp.empty) {
-                const docId = myApp.docs[0].id;
-                const cancelBtn = isClosed 
-                    ? `<button disabled class="mt-4 w-full bg-gray-300 text-gray-500 font-bold py-2 px-6 rounded-xl cursor-not-allowed">ปิดระบบแล้ว (ยกเลิกไม่ได้)</button>`
-                    : `<button onclick="cancelMyApplication('${docId}')" class="mt-4 w-full bg-red-100 hover:bg-red-200 text-red-600 font-bold py-2 px-6 rounded-xl transition-colors">ยกเลิกการสมัคร</button>`;
+            if (globalApplicant) {
+                // If already applied
+                let isSystemClosed = !globalSettings.isOpen;
+                // Double check if time closed
+                if (globalSettings.autoSchedule && globalSettings.closeDateTime && now > globalSettings.closeDateTime.toDate()) {
+                    isSystemClosed = true;
+                }
+                newState = isSystemClosed ? 'APPLIED_LOCKED' : 'APPLIED_CAN_CANCEL';
+            } 
+            else {
+                const myGrade = "ม." + cleanGrade(currentUser.grade);
+                const allowed = globalSettings.allowedGrades || [];
                 
-                statusDiv.innerHTML = `
-                    <div class="bg-green-50 border border-green-200 rounded-2xl p-6">
-                        <div class="text-green-600 text-4xl mb-2"><i class="fas fa-check-circle"></i></div>
-                        <h3 class="text-xl font-bold text-green-800">สมัครเรียบร้อยแล้ว</h3>
-                        <p class="text-green-700 text-sm mt-1">บันทึกข้อมูลเข้าระบบแล้ว</p>
-                        ${cancelBtn}
-                    </div>
-                `;
-                regBtn.classList.add('hidden');
-                timerDiv.classList.add('hidden');
-                return;
-            }
-
-            // Check Grade
-            const myGrade = "ม." + cleanGrade(currentUser.grade);
-            if(settings.allowedGrades && settings.allowedGrades.length > 0 && !settings.allowedGrades.includes(myGrade)) {
-                statusDiv.innerHTML = `
-                    <div class="bg-red-50 border border-red-200 rounded-2xl p-6">
-                        <i class="fas fa-lock text-red-400 text-3xl mb-2"></i>
-                        <h3 class="font-bold text-red-800">ไม่สามารถสมัครได้</h3>
-                        <p class="text-red-600 text-sm">ระบบเปิดเฉพาะ: ${settings.allowedGrades.join(', ')}</p>
-                        <p class="text-xs text-gray-500 mt-2">ระดับชั้นของคุณ: ${myGrade}</p>
-                    </div>`;
-                regBtn.classList.add('hidden');
-                timerDiv.classList.add('hidden');
-                return;
-            }
-
-            if(settings.openDateTime && settings.closeDateTime) {
-                const op = settings.openDateTime.toDate();
-                const cl = settings.closeDateTime.toDate();
-                if(now < op) {
-                    statusDiv.innerHTML = `<div class="text-indigo-600 font-bold animate-pulse">⏳ ระบบจะเปิดรับสมัครเร็วๆ นี้</div>`;
-                    regBtn.classList.add('hidden');
-                    setupCountdown(op, true);
-                } else if(now > cl) {
-                    statusDiv.innerHTML = `<div class="bg-gray-100 p-6 rounded-xl text-gray-500 font-bold">⛔ ปิดรับสมัครแล้ว</div>`;
-                    regBtn.classList.add('hidden');
-                    timerDiv.classList.add('hidden');
+                if (allowed.length > 0 && !allowed.includes(myGrade)) {
+                    newState = 'GRADE_ERROR';
                 } else {
-                    if(!settings.isOpen) {
-                        statusDiv.innerHTML = `<div class="text-red-500 font-bold">⛔ ระบบปิดรับสมัครชั่วคราว</div>`;
-                        regBtn.classList.add('hidden');
-                        timerDiv.classList.add('hidden');
+                    // *** CRITICAL: Check if "Auto Schedule" is active and valid ***
+                    const hasTimeSchedule = globalSettings.autoSchedule && globalSettings.openDateTime && globalSettings.closeDateTime;
+                    
+                    if (hasTimeSchedule) {
+                        const op = globalSettings.openDateTime.toDate();
+                        const cl = globalSettings.closeDateTime.toDate();
+                        
+                        if (now < op) {
+                            newState = 'WAITING';
+                            targetTime = op;
+                            isOpening = true;
+                        } else if (now > cl) {
+                            newState = 'CLOSED_TIME';
+                        } else {
+                            // During time slot, check Master Switch
+                            if (!globalSettings.isOpen) {
+                                newState = 'CLOSED_MANUAL';
+                            } else {
+                                newState = 'OPEN';
+                                targetTime = cl; // Count down to close
+                                isOpening = false;
+                            }
+                        }
                     } else {
-                        statusDiv.innerHTML = '';
-                        regBtn.classList.remove('hidden');
-                        setupCountdown(cl, false);
+                        // Manual Mode (Or Cleared Schedule)
+                        if (globalSettings.isOpen) newState = 'OPEN';
+                        else newState = 'CLOSED_MANUAL';
                     }
                 }
-            } else {
-                if(settings.isOpen) {
+            }
+
+            // Render Only on State Change
+            if (newState !== currentUIState) {
+                // Hide timer by default when switching states (unless turned back on)
+                regBtn.classList.add('hidden');
+                timerDiv.classList.add('hidden');
+                statusDiv.innerHTML = '';
+
+                if (newState.startsWith('APPLIED')) {
+                     const isLocked = (newState === 'APPLIED_LOCKED');
+                     const cancelBtn = isLocked
+                        ? `<button disabled class="mt-4 w-full bg-gray-300 text-gray-500 font-bold py-2 px-6 rounded-xl cursor-not-allowed">ปิดระบบแล้ว (ยกเลิกไม่ได้)</button>`
+                        : `<button onclick="cancelMyApplication('${globalApplicant.docId}')" class="mt-4 w-full bg-red-100 hover:bg-red-200 text-red-600 font-bold py-2 px-6 rounded-xl transition-colors">ยกเลิกการสมัคร</button>`;
+                    
+                    statusDiv.innerHTML = `
+                        <div class="bg-green-50 border border-green-200 rounded-2xl p-6 fade-in">
+                            <div class="text-green-600 text-4xl mb-2"><i class="fas fa-check-circle"></i></div>
+                            <h3 class="text-xl font-bold text-green-800">สมัครเรียบร้อยแล้ว</h3>
+                            <p class="text-green-700 text-sm mt-1">บันทึกข้อมูลเข้าระบบแล้ว</p>
+                            ${cancelBtn}
+                        </div>`;
+                }
+                else if (newState === 'GRADE_ERROR') {
+                    const myGrade = "ม." + cleanGrade(currentUser.grade);
+                    statusDiv.innerHTML = `
+                        <div class="bg-red-50 border border-red-200 rounded-2xl p-6 fade-in">
+                            <i class="fas fa-lock text-red-400 text-3xl mb-2"></i>
+                            <h3 class="font-bold text-red-800">ไม่สามารถสมัครได้</h3>
+                            <p class="text-red-600 text-sm">ระบบเปิดเฉพาะ: ${globalSettings.allowedGrades.join(', ')}</p>
+                            <p class="text-xs text-gray-500 mt-2">ระดับชั้นของคุณ: ${myGrade}</p>
+                        </div>`;
+                }
+                else if (newState === 'WAITING') {
+                    statusDiv.innerHTML = `<div class="text-indigo-600 font-bold animate-pulse">⏳ ระบบจะเปิดรับสมัครเร็วๆ นี้</div>`;
+                    timerDiv.classList.remove('hidden');
+                }
+                else if (newState === 'CLOSED_TIME' || newState === 'CLOSED_MANUAL') {
+                    statusDiv.innerHTML = `<div class="bg-gray-100 p-6 rounded-xl text-gray-500 font-bold fade-in">⛔ ปิดรับสมัครแล้ว</div>`;
+                }
+                else if (newState === 'OPEN') {
                     statusDiv.innerHTML = '';
                     regBtn.classList.remove('hidden');
-                    timerDiv.classList.add('hidden');
-                } else {
-                    statusDiv.innerHTML = `<div class="bg-gray-100 p-6 rounded-xl text-gray-500 font-bold">⛔ ปิดรับสมัครแล้ว</div>`;
-                    regBtn.classList.add('hidden');
-                    timerDiv.classList.add('hidden');
+                    if (targetTime) timerDiv.classList.remove('hidden'); // Show timer only if auto-schedule
                 }
+                
+                currentUIState = newState;
+            }
+
+            // Continuous Updates for Timer
+            if (newState === 'WAITING' || (newState === 'OPEN' && targetTime)) {
+                renderCountdown(targetTime, isOpening);
             }
         }
 
-        function setupCountdown(target, isOpening) {
+        function renderCountdown(targetDate, isOpening) {
             const el = document.getElementById('countdownTimer');
-            el.classList.remove('hidden');
-            if(countdownInterval) clearInterval(countdownInterval);
-            const update = () => {
-                const diff = target - new Date();
-                if(diff < 0) { clearInterval(countdownInterval); checkRegistrationStatus(); return; }
-                const d = Math.floor(diff/(1000*60*60*24));
-                const h = Math.floor((diff%(1000*60*60*24))/(1000*60*60));
-                const m = Math.floor((diff%(1000*60*60))/(1000*60));
-                const s = Math.floor((diff%(1000*60))/1000);
-                el.innerHTML = `
-                    <div class="${isOpening?'bg-indigo-600':'bg-orange-500'} text-white rounded-xl p-4 shadow-lg mb-4">
-                        <div class="text-sm opacity-90 mb-1">${isOpening?'เปิดใน':'เหลือเวลา'}</div>
-                        <div class="font-mono text-2xl font-bold tracking-widest">${d}วัน ${h}:${m}:${s}</div>
-                    </div>`;
-            };
-            update(); countdownInterval = setInterval(update, 1000);
+            if(el.classList.contains('hidden')) el.classList.remove('hidden');
+            
+            const diff = targetDate - new Date();
+            if (diff < 0) return; 
+
+            const d = Math.floor(diff/(1000*60*60*24));
+            const h = Math.floor((diff%(1000*60*60*24))/(1000*60*60));
+            const m = Math.floor((diff%(1000*60*60))/(1000*60));
+            const s = Math.floor((diff%(1000*60))/1000);
+
+            el.innerHTML = `
+                <div class="${isOpening?'bg-indigo-600':'bg-orange-500'} text-white rounded-xl p-4 shadow-lg mb-4 transition-all duration-300">
+                    <div class="text-sm opacity-90 mb-1">${isOpening?'เปิดใน':'เหลือเวลา'}</div>
+                    <div class="font-mono text-2xl font-bold tracking-widest">${d}วัน ${h}:${m}:${s}</div>
+                </div>`;
         }
 
         document.getElementById('registerBtn').addEventListener('click', () => {
@@ -637,12 +694,13 @@
                         firstName: currentUser.firstName,
                         lastName: currentUser.lastName,
                         nickname: currentUser.nickname||'',
-                        grade: cleanGrade(currentUser.grade), // Clean data before saving
+                        grade: cleanGrade(currentUser.grade),
                         room: currentUser.room,
                         phone: currentUser.phone,
                         timestamp: firebase.firestore.FieldValue.serverTimestamp()
                     });
-                    hideLoading(); showNotification('สมัครสำเร็จเรียบร้อย', 'success'); checkRegistrationStatus();
+                    hideLoading(); 
+                    showNotification('สมัครสำเร็จเรียบร้อย', 'success'); 
                 } catch(e) { hideLoading(); showNotification('เกิดข้อผิดพลาดในการสมัคร', 'error'); }
             });
         });
@@ -651,15 +709,23 @@
             showConfirmation('ต้องการยกเลิกการสมัคร?', async () => {
                 showLoading();
                 try {
-                    const s = (await db.collection('settings').doc('registration').get()).data();
-                    if(!s.isOpen || (s.closeDateTime && new Date() > s.closeDateTime.toDate())) throw new Error('closed');
+                    // Check logic before delete
+                    if (globalSettings) {
+                        let isClosed = !globalSettings.isOpen;
+                        if(globalSettings.autoSchedule && globalSettings.closeDateTime && new Date() > globalSettings.closeDateTime.toDate()) {
+                            isClosed = true;
+                        }
+                        if(isClosed) throw new Error('closed');
+                    }
                     await db.collection('applicants').doc(docId).delete();
-                    hideLoading(); showNotification('ยกเลิกการสมัครแล้ว', 'success'); checkRegistrationStatus();
+                    hideLoading(); 
+                    showNotification('ยกเลิกการสมัครแล้ว', 'success'); 
                 } catch(e) { hideLoading(); showNotification(e.message==='closed'?'ระบบปิดแล้ว ไม่สามารถยกเลิกได้':'เกิดข้อผิดพลาด', 'error'); }
             });
         };
 
-        // Admin Logic
+        // ================= ADMIN LOGIC =================
+
         async function initAdminDashboard() {
             document.getElementById('loginPage').classList.add('hidden');
             document.getElementById('adminDashboard').classList.remove('hidden');
@@ -668,10 +734,10 @@
             const s = (await db.collection('settings').doc('registration').get()).data() || {isOpen:true, allowedGrades:[]};
             document.getElementById('registrationToggle').checked = s.isOpen;
             document.querySelectorAll('.grade-select').forEach(c => c.checked = s.allowedGrades?.includes(c.value));
+            
             if(s.openDateTime) document.getElementById('openDateTime').value = formatDt(s.openDateTime.toDate());
             if(s.closeDateTime) document.getElementById('closeDateTime').value = formatDt(s.closeDateTime.toDate());
 
-            // 1. Applicants
             adminListeners.push(db.collection('applicants').orderBy('timestamp','desc').onSnapshot(snap => {
                 applicantIds = new Set();
                 const tb = document.getElementById('applicantsTable'); tb.innerHTML='';
@@ -679,7 +745,6 @@
                 snap.forEach(doc => {
                     const d = doc.data();
                     applicantIds.add(d.studentId);
-                    // Fix: ใช้ cleanGrade เพื่อไม่ให้แสดง 'ม.ม.4'
                     const gradeDisplay = cleanGrade(d.grade);
                     tb.innerHTML += `
                         <tr class="border-b hover:bg-gray-50">
@@ -694,19 +759,16 @@
                 renderMasterTable();
             }));
 
-            // 2. All Students
             adminListeners.push(db.collection('applications').onSnapshot(snap => {
                 allStudentsData = [];
                 const gradeSet = new Set();
                 snap.forEach(doc => {
                     const d = { ...doc.data(), docId: doc.id };
-                    // Clean data for internal usage
                     d.gradeClean = cleanGrade(d.grade);
                     if(d.gradeClean) gradeSet.add(d.gradeClean);
                     allStudentsData.push(d);
                 });
                 
-                // Update Grade Filter
                 const sel = document.getElementById('filterGrade');
                 const curr = sel.value;
                 sel.innerHTML = '<option value="">ทุกระดับชั้น</option>';
@@ -719,7 +781,6 @@
             }));
         }
 
-        // [MODIFIED] Pagination Logic
         function renderMasterTable() {
             const search = document.getElementById('searchStudent').value.toLowerCase();
             const grade = document.getElementById('filterGrade').value;
@@ -727,7 +788,6 @@
             const tb = document.getElementById('allStudentsTable'); 
             tb.innerHTML = '';
 
-            // 1. กรองข้อมูล
             const filtered = allStudentsData.filter(s => {
                 const isApp = applicantIds.has(s.studentId);
                 const txt = s.studentId.includes(search) || s.firstName.includes(search) || s.lastName.includes(search);
@@ -736,18 +796,15 @@
                 return txt && gr && st;
             });
 
-            // 2. คำนวณ Pagination
             const totalItems = filtered.length;
             const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
             
-            // ป้องกันกรณีหน้าปัจจุบันเกินจำนวนหน้าจริง
             if (currentPage > totalPages) currentPage = 1;
 
             const startIndex = (currentPage - 1) * itemsPerPage;
             const endIndex = startIndex + itemsPerPage;
             const paginatedData = filtered.slice(startIndex, endIndex);
 
-            // 3. วาดตาราง (Render Rows)
             if (paginatedData.length === 0) {
                 tb.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-gray-400">ไม่พบข้อมูล</td></tr>`;
             } else {
@@ -771,91 +828,57 @@
                 });
             }
 
-            // 4. วาดปุ่มเปลี่ยนหน้า (Render Controls)
             renderPaginationControls(totalItems, totalPages, startIndex + 1, Math.min(endIndex, totalItems));
         }
 
         function renderPaginationControls(totalItems, totalPages, showFrom, showTo) {
             const container = document.getElementById('paginationInfo');
-            
             if (totalItems === 0) {
                 container.innerHTML = `<span class="text-gray-400">ไม่มีข้อมูล</span>`;
                 return;
             }
-
-            // สร้างปุ่ม HTML
             let buttonsHtml = `
                 <div class="flex flex-col md:flex-row justify-between items-center gap-4 mt-4 w-full px-2">
                     <div class="text-sm text-gray-600">
                         แสดง ${showFrom}-${showTo} จากทั้งหมด <span class="font-bold text-indigo-600">${totalItems}</span> คน
                     </div>
-                    
                     <div class="flex items-center space-x-2">
                         <button onclick="changePage(${currentPage - 1})" 
                             class="px-3 py-1 rounded-lg border border-gray-300 text-sm ${currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'hover:bg-indigo-50 text-gray-700 hover:text-indigo-600'}" 
                             ${currentPage === 1 ? 'disabled' : ''}>
                             <i class="fas fa-chevron-left"></i> ก่อนหน้า
                         </button>
-
-                        <div class="flex items-center space-x-1">
-                            ${generatePageNumbers(totalPages)}
-                        </div>
-
+                        <div class="flex items-center space-x-1">${generatePageNumbers(totalPages)}</div>
                         <button onclick="changePage(${currentPage + 1})" 
                             class="px-3 py-1 rounded-lg border border-gray-300 text-sm ${currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'hover:bg-indigo-50 text-gray-700 hover:text-indigo-600'}" 
                             ${currentPage === totalPages ? 'disabled' : ''}>
                             ถัดไป <i class="fas fa-chevron-right"></i>
                         </button>
                     </div>
-                </div>
-            `;
-
+                </div>`;
             container.innerHTML = buttonsHtml;
         }
 
         function generatePageNumbers(totalPages) {
             let html = '';
-            const maxButtons = 5; // จำนวนปุ่มตัวเลขที่จะแสดงสูงสุด
-            
+            const maxButtons = 5;
             let startPage = Math.max(1, currentPage - 2);
             let endPage = Math.min(totalPages, startPage + maxButtons - 1);
-            
-            if (endPage - startPage < maxButtons - 1) {
-                startPage = Math.max(1, endPage - maxButtons + 1);
-            }
-
-            // ปุ่มหน้าแรกสุด
-            if (startPage > 1) {
-                html += `<button onclick="changePage(1)" class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-sm hover:bg-gray-50">1</button>`;
-                if (startPage > 2) html += `<span class="text-gray-400 px-1">...</span>`;
-            }
-
-            // ปุ่มตัวเลขตรงกลาง
+            if (endPage - startPage < maxButtons - 1) { startPage = Math.max(1, endPage - maxButtons + 1); }
+            if (startPage > 1) { html += `<button onclick="changePage(1)" class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-sm hover:bg-gray-50">1</button>`; if (startPage > 2) html += `<span class="text-gray-400 px-1">...</span>`; }
             for (let i = startPage; i <= endPage; i++) {
                 const activeClass = i === currentPage ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50';
                 html += `<button onclick="changePage(${i})" class="w-8 h-8 flex items-center justify-center rounded-lg border text-sm font-medium transition-colors ${activeClass}">${i}</button>`;
             }
-
-            // ปุ่มหน้าสุดท้าย
-            if (endPage < totalPages) {
-                if (endPage < totalPages - 1) html += `<span class="text-gray-400 px-1">...</span>`;
-                html += `<button onclick="changePage(${totalPages})" class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-sm hover:bg-gray-50">${totalPages}</button>`;
-            }
-
+            if (endPage < totalPages) { if (endPage < totalPages - 1) html += `<span class="text-gray-400 px-1">...</span>`; html += `<button onclick="changePage(${totalPages})" class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-sm hover:bg-gray-50">${totalPages}</button>`; }
             return html;
         }
 
-        window.changePage = (page) => {
-            currentPage = page;
-            renderMasterTable();
-        };
-
-        // Event Listeners (Modified for Pagination Reset)
+        window.changePage = (page) => { currentPage = page; renderMasterTable(); };
         document.getElementById('searchStudent').addEventListener('keyup', () => { currentPage = 1; renderMasterTable(); });
         document.getElementById('filterGrade').addEventListener('change', () => { currentPage = 1; renderMasterTable(); });
         document.getElementById('filterStatus').addEventListener('change', () => { currentPage = 1; renderMasterTable(); });
 
-        // Add/Edit Student
         document.getElementById('addStudentBtn').addEventListener('click', () => {
             document.getElementById('formMode').value = 'add';
             document.getElementById('modalTitle').textContent = 'เพิ่มนักเรียนใหม่';
@@ -893,15 +916,10 @@
                 nickname: document.getElementById('formNickname').value.trim(),
                 phone: document.getElementById('formPhone').value.trim()
             };
-            
             showLoading();
             try {
-                if(mode==='add') {
-                    data.timestamp = firebase.firestore.FieldValue.serverTimestamp();
-                    await db.collection('applications').add(data);
-                } else {
-                    await db.collection('applications').doc(document.getElementById('formDocId').value).update(data);
-                }
+                if(mode==='add') { data.timestamp = firebase.firestore.FieldValue.serverTimestamp(); await db.collection('applications').add(data); } 
+                else { await db.collection('applications').doc(document.getElementById('formDocId').value).update(data); }
                 hideLoading(); document.getElementById('addStudentModal').classList.add('hidden');
                 showNotification('บันทึกข้อมูลสำเร็จ', 'success');
             } catch(e) { hideLoading(); showNotification('เกิดข้อผิดพลาดในการบันทึก', 'error'); }
@@ -910,7 +928,6 @@
         document.getElementById('closeModalBtn').addEventListener('click', () => document.getElementById('addStudentModal').classList.add('hidden'));
         document.getElementById('cancelFormBtn').addEventListener('click', () => document.getElementById('addStudentModal').classList.add('hidden'));
 
-        // Delete & Utility
         window.delApp = (id) => showConfirmation('ยืนยันลบใบสมัครนี้?', async()=>{ await db.collection('applicants').doc(id).delete(); showNotification('ลบใบสมัครเรียบร้อย','success'); });
         window.delStd = (id) => showConfirmation('ยืนยันลบข้อมูลนักเรียน?', async()=>{ await db.collection('applications').doc(id).delete(); showNotification('ลบข้อมูลนักเรียนเรียบร้อย','success'); });
         
@@ -925,16 +942,21 @@
             showNotification(e.target.checked ? 'เปิดระบบรับสมัครแล้ว' : 'ปิดระบบรับสมัครแล้ว', e.target.checked ? 'success' : 'info');
         });
 
-        // Set Schedule
         document.getElementById('setScheduleBtn').addEventListener('click', async()=>{
             const op = document.getElementById('openDateTime').value;
             const cl = document.getElementById('closeDateTime').value;
             if(!op || !cl) return showNotification('กรุณาระบุเวลาให้ครบถ้วน','error');
-            await db.collection('settings').doc('registration').set({openDateTime:new Date(op), closeDateTime:new Date(cl), autoSchedule:true},{merge:true});
+            // Explicitly set autoSchedule to true
+            await db.collection('settings').doc('registration').set({
+                openDateTime:new Date(op), 
+                closeDateTime:new Date(cl), 
+                autoSchedule:true
+            },{merge:true});
             showNotification('ตั้งเวลาอัตโนมัติสำเร็จ','success');
         });
         
         document.getElementById('clearScheduleBtn').addEventListener('click', async()=>{
+            // Remove fields and set autoSchedule to false
             await db.collection('settings').doc('registration').update({
                 openDateTime: firebase.firestore.FieldValue.delete(),
                 closeDateTime: firebase.firestore.FieldValue.delete(),
@@ -942,7 +964,7 @@
             });
             document.getElementById('openDateTime').value = '';
             document.getElementById('closeDateTime').value = '';
-            showNotification('ล้างการตั้งเวลาเรียบร้อย','success');
+            showNotification('ล้างการตั้งเวลาเรียบร้อย (กลับสู่โหมด Manual)','success');
         });
 
         document.getElementById('clearStudentsBtn').addEventListener('click', ()=>showConfirmation('ข้อมูลทั้งหมดจะหายไป ยืนยัน?', async()=>{
@@ -952,7 +974,6 @@
             await batch.commit(); hideLoading(); showNotification('ล้างข้อมูลทั้งหมดแล้ว','success');
         }));
 
-        // CSV Import
         document.getElementById('csvImportBtn').addEventListener('click', ()=>document.getElementById('csvFileInput').click());
         document.getElementById('csvFileInput').addEventListener('change', async(e)=>{
             const f = e.target.files[0]; if(!f) return;
@@ -964,15 +985,7 @@
                     const col = rows[i].trim().split(',');
                     if(col[0]) {
                         batch.set(db.collection('applications').doc(), {
-                            studentId:col[0]?.trim(), 
-                            grade:cleanGrade(col[1]?.trim()), 
-                            room:col[2]?.trim(), 
-                            prefix:col[3]?.trim(), 
-                            firstName:col[4]?.trim(), 
-                            lastName:col[5]?.trim(), 
-                            nickname:col[6]?.trim()||'', 
-                            phone:col[7]?.trim()||'',
-                            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                            studentId:col[0]?.trim(), grade:cleanGrade(col[1]?.trim()), room:col[2]?.trim(), prefix:col[3]?.trim(), firstName:col[4]?.trim(), lastName:col[5]?.trim(), nickname:col[6]?.trim()||'', phone:col[7]?.trim()||'', timestamp: firebase.firestore.FieldValue.serverTimestamp()
                         }); c++;
                     }
                 }
@@ -983,17 +996,12 @@
         document.getElementById('exportBtn').addEventListener('click', async()=>{
             const snap = await db.collection('applicants').orderBy('timestamp','desc').get();
             let csv = "\uFEFFรหัส,ชื่อ-สกุล,ชั้น,ห้อง,โทร,เวลา\n";
-            snap.forEach(d=>{ 
-                const x=d.data(); 
-                csv+=`"${x.studentId}","${x.prefix}${x.firstName} ${x.lastName}","${x.grade}","${x.room}","${x.phone}","${x.timestamp?.toDate().toLocaleString('th-TH')}"\n`; 
-            });
+            snap.forEach(d=>{ const x=d.data(); csv+=`"${x.studentId}","${x.prefix}${x.firstName} ${x.lastName}","${x.grade}","${x.room}","${x.phone}","${x.timestamp?.toDate().toLocaleString('th-TH')}"\n`; });
             const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
-            a.download = `Applicants_${new Date().toISOString().slice(0,10)}.csv`; 
-            a.click();
+            a.download = `Applicants_${new Date().toISOString().slice(0,10)}.csv`; a.click();
             showNotification('ส่งออกไฟล์ CSV เรียบร้อยแล้ว', 'success');
         });
 
-        // Confirmation
         let confirmCb = null;
         window.showConfirmation = (msg, cb) => {
             document.getElementById('confirmMessage').textContent = msg; confirmCb = cb;
